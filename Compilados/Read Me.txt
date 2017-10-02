@@ -1,0 +1,11 @@
+Abrir CMD
+
+Rodar Servidor
+
+java -jar Server.jar 9999
+
+Rodar Cliente
+
+java -jar Client.jar localhost 9999
+
+Obs: trocar 9999 pela porta desejada e localhost pelo IP do servidor.

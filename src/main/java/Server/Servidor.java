@@ -15,7 +15,7 @@ import org.apache.thrift.TException;
 
 /**
  *
- * @author heitor, marcelo, teste
+ * @author heito
  */
 public class Servidor implements Handler.Iface {
 

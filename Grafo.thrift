@@ -12,8 +12,8 @@ struct Vertice
 
 struct Aresta
 {
-	1: Vertice vertice1,
-	2: Vertice vertice2,
+	1: int vertice1,
+	2: int vertice2,
 	3: double peso,
 	4: bool direc,
 	5: string desc

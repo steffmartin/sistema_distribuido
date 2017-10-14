@@ -31,7 +31,7 @@ public class Servidor implements Handler.Iface {
 
     @Override
     public boolean createAresta(Aresta a) throws TException {
-        IntInt id = new IntInt(a.getVertice1().getNome(), a.getVertice2().getNome());
+        IntInt id = new IntInt(a.getVertice1(), a.getVertice2());
         if (id.getNome1() == id.getNome2()) {
             return false;
         }
@@ -39,16 +39,12 @@ public class Servidor implements Handler.Iface {
             if (id.getNome1() < id.getNome2()) {
                 synchronized (g.vertices.get(id.getNome1())) {
                     synchronized (g.vertices.get(id.getNome2())) {
-                        a.setVertice1(g.vertices.get(id.getNome1()));
-                        a.setVertice2(g.vertices.get(id.getNome2()));
                         return g.arestas.putIfAbsent(id, a) == null;
                     }
                 }
             } else {
                 synchronized (g.vertices.get(id.getNome2())) {
                     synchronized (g.vertices.get(id.getNome1())) {
-                        a.setVertice1(g.vertices.get(id.getNome1()));
-                        a.setVertice2(g.vertices.get(id.getNome2()));
                         return g.arestas.putIfAbsent(id, a) == null;
                     }
                 }
@@ -95,22 +91,18 @@ public class Servidor implements Handler.Iface {
 
     @Override
     public boolean updateAresta(Aresta a) throws TException {
-        IntInt id = new IntInt(a.getVertice1().getNome(), a.getVertice2().getNome());
+        IntInt id = new IntInt(a.getVertice1(), a.getVertice2());
         try {
             synchronized (g.arestas.get(id)) {
                 if (id.getNome1() < id.getNome2()) {
                     synchronized (g.vertices.get(id.getNome1())) {
                         synchronized (g.vertices.get(id.getNome2())) {
-                            a.setVertice1(g.vertices.get(id.getNome1()));
-                            a.setVertice2(g.vertices.get(id.getNome2()));
                             return g.arestas.replace(id, g.arestas.get(id), a);
                         }
                     }
                 } else {
                     synchronized (g.vertices.get(id.getNome2())) {
                         synchronized (g.vertices.get(id.getNome1())) {
-                            a.setVertice1(g.vertices.get(id.getNome1()));
-                            a.setVertice2(g.vertices.get(id.getNome2()));
                             return g.arestas.replace(id, g.arestas.get(id), a);
                         }
                     }
@@ -174,7 +166,7 @@ public class Servidor implements Handler.Iface {
         Aresta a;
         while (it.hasNext()) {
             a = it.next();
-            if (a.getVertice1().getNome() != nome && a.getVertice2().getNome() != nome) {
+            if (a.getVertice1() != nome && a.getVertice2() != nome) {
                 it.remove();
             }
         }
@@ -186,10 +178,19 @@ public class Servidor implements Handler.Iface {
         List<Aresta> list = this.listArestasDoVertice(nome);
         List<Vertice> result = new ArrayList<>();
         for (Aresta a : list) {
-            if (a.getVertice1().getNome() == nome && !result.contains(a.getVertice2())) {
-                result.add(a.getVertice2());
-            } else if (a.getVertice2().getNome() == nome && !result.contains(a.getVertice1())) {
-                result.add(a.getVertice1());
+            try {
+                synchronized (g.arestas.get(a)) {
+                    if (a.getVertice1() == nome && !result.contains(a.getVertice2())) {
+                        synchronized (g.vertices.get(a.getVertice2())) {
+                            result.add(g.vertices.get(a.getVertice2()));
+                        }
+                    } else if (a.getVertice2() == nome && !result.contains(a.getVertice1())) {
+                        synchronized (g.vertices.get(a.getVertice1())) {
+                            result.add(g.vertices.get(a.getVertice1()));
+                        }
+                    }
+                }
+            } catch (NullPointerException ex) {;
             }
         }
         return result;

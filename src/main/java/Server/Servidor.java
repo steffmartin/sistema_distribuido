@@ -31,7 +31,8 @@ public class Servidor implements Handler.Iface {
 
     @Override
     public boolean createAresta(Aresta a) throws TException {
-        IntInt id = new IntInt(a.getVertice1(), a.getVertice2());
+        ArestaId id = new ArestaId(a.getVertice1(), a.getVertice2());
+        ArestaId id2 = new ArestaId(a.getVertice2(), a.getVertice1());
         if (id.getNome1() == id.getNome2()) {
             return false;
         }
@@ -39,13 +40,33 @@ public class Servidor implements Handler.Iface {
             if (id.getNome1() < id.getNome2()) {
                 synchronized (g.vertices.get(id.getNome1())) {
                     synchronized (g.vertices.get(id.getNome2())) {
-                        return g.arestas.putIfAbsent(id, a) == null;
+                        try {
+                            synchronized (g.arestas.get(id2)) {
+                                if (!g.arestas.get(id2).isDirec() || !a.isDirec()) {
+                                    return false;
+                                } else {
+                                    throw new NullPointerException();
+                                }
+                            }
+                        } catch (NullPointerException ey) {
+                            return g.arestas.putIfAbsent(id, a) == null;
+                        }
                     }
                 }
             } else {
                 synchronized (g.vertices.get(id.getNome2())) {
                     synchronized (g.vertices.get(id.getNome1())) {
-                        return g.arestas.putIfAbsent(id, a) == null;
+                        try {
+                            synchronized (g.arestas.get(id2)) {
+                                if (!g.arestas.get(id2).isDirec() || !a.isDirec()) {
+                                    return false;
+                                } else {
+                                    throw new NullPointerException();
+                                }
+                            }
+                        } catch (NullPointerException ez) {
+                            return g.arestas.putIfAbsent(id, a) == null;
+                        }
                     }
                 }
             }
@@ -67,13 +88,24 @@ public class Servidor implements Handler.Iface {
 
     @Override
     public Aresta readAresta(int nome1, int nome2) throws NullException, TException {
-        IntInt id = new IntInt(nome1, nome2);
+        ArestaId id = new ArestaId(nome1, nome2);
+        ArestaId id2 = new ArestaId(nome2, nome1);
         try {
             synchronized (g.arestas.get(id)) {
                 return g.arestas.get(id);
             }
         } catch (NullPointerException ex) {
-            throw new NullException("A aresta '" + nome1 + "," + nome2 + "' não existe.");
+            try {
+                synchronized (g.arestas.get(id2)) {
+                    if (!g.arestas.get(id2).isDirec()) {
+                        return g.arestas.get(id2);
+                    } else {
+                        throw new NullPointerException();
+                    }
+                }
+            } catch (NullPointerException ey) {
+                throw new NullException("A aresta '" + nome1 + "," + nome2 + "' não existe.");
+            }
         }
     }
 
@@ -91,25 +123,52 @@ public class Servidor implements Handler.Iface {
 
     @Override
     public boolean updateAresta(Aresta a) throws TException {
-        IntInt id = new IntInt(a.getVertice1(), a.getVertice2());
+        ArestaId id = new ArestaId(a.getVertice1(), a.getVertice2());
+        ArestaId id2 = new ArestaId(a.getVertice2(), a.getVertice1());
         try {
             synchronized (g.arestas.get(id)) {
-                if (id.getNome1() < id.getNome2()) {
-                    synchronized (g.vertices.get(id.getNome1())) {
+                if (!g.arestas.containsKey(id2) || a.isDirec()) {
+                    if (id.getNome1() < id.getNome2()) {
+                        synchronized (g.vertices.get(id.getNome1())) {
+                            synchronized (g.vertices.get(id.getNome2())) {
+                                return g.arestas.replace(id, g.arestas.get(id), a);
+                            }
+                        }
+                    } else {
                         synchronized (g.vertices.get(id.getNome2())) {
-                            return g.arestas.replace(id, g.arestas.get(id), a);
+                            synchronized (g.vertices.get(id.getNome1())) {
+                                return g.arestas.replace(id, g.arestas.get(id), a);
+                            }
                         }
                     }
                 } else {
-                    synchronized (g.vertices.get(id.getNome2())) {
-                        synchronized (g.vertices.get(id.getNome1())) {
-                            return g.arestas.replace(id, g.arestas.get(id), a);
-                        }
-                    }
+                    return false;
                 }
             }
         } catch (NullPointerException ex) {
-            return false;
+            try {
+                synchronized (g.arestas.get(id2)) {
+                    if (!g.arestas.get(id2).isDirec()) {
+                        if (id2.getNome1() < id2.getNome2()) {
+                            synchronized (g.vertices.get(id2.getNome1())) {
+                                synchronized (g.vertices.get(id2.getNome2())) {
+                                    return g.arestas.replace(id2, g.arestas.get(id2), a);
+                                }
+                            }
+                        } else {
+                            synchronized (g.vertices.get(id2.getNome2())) {
+                                synchronized (g.vertices.get(id2.getNome1())) {
+                                    return g.arestas.replace(id2, g.arestas.get(id2), a);
+                                }
+                            }
+                        }
+                    } else {
+                        throw new NullPointerException();
+                    }
+                }
+            } catch (NullPointerException ey) {
+                return false;
+            }
         }
     }
 
@@ -132,13 +191,24 @@ public class Servidor implements Handler.Iface {
 
     @Override
     public boolean deleteAresta(int nome1, int nome2) throws TException {
-        IntInt id = new IntInt(nome1, nome2);
+        ArestaId id = new ArestaId(nome1, nome2);
+        ArestaId id2 = new ArestaId(nome2, nome1);
         try {
             synchronized (g.arestas.get(id)) {
                 return g.arestas.remove(id) != null;
             }
         } catch (NullPointerException ex) {
-            return false;
+            try {
+                synchronized (g.arestas.get(id2)) {
+                    if (!g.arestas.get(id2).isDirec()) {
+                        return g.arestas.remove(id2) != null;
+                    } else {
+                        throw new NullPointerException();
+                    }
+                }
+            } catch (NullPointerException ey) {
+                return false;
+            }
         }
     }
 
@@ -196,23 +266,4 @@ public class Servidor implements Handler.Iface {
         return result;
     }
 
-}
-
-//Classe para facilitar indexação no HashMap de arestas
-class IntInt extends ArestaId {
-
-    public IntInt(int nome1, int nome2) {
-        super(nome1, nome2);
-    }
-
-    @Override
-    public int hashCode() {
-        return ((this.nome1 * 2 + this.nome2 % 3) * this.nome1) + this.nome2;
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        return obj != null && obj instanceof IntInt && this.nome1 == ((IntInt) obj).nome1 && this.nome2 == ((IntInt) obj).nome2;
-
-    }
 }

@@ -17,7 +17,7 @@ import org.apache.thrift.transport.TTransportException;
 
 /**
  *
- * @author steffan
+ * @author steff
  */
 public class Principal {
 

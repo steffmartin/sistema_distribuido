@@ -148,7 +148,7 @@ public class Servidor implements Handler.Iface {
         } catch (NullPointerException ex) {
             try {
                 synchronized (g.arestas.get(id2)) {
-                    if (!g.arestas.get(id2).isDirec()) {
+                    if (!g.arestas.get(id2).isDirec() && !a.isDirec()) {
                         if (id2.getNome1() < id2.getNome2()) {
                             synchronized (g.vertices.get(id2.getNome1())) {
                                 synchronized (g.vertices.get(id2.getNome2())) {

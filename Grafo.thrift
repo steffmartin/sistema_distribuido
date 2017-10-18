@@ -49,5 +49,6 @@ service Handler
 	list<Vertice> listVerticesDoGrafo(),
 	list<Aresta> listArestasDoGrafo(),
 	list<Aresta> listArestasDoVertice(1:int nome) throws (1:NullException ne),
-	list<Vertice> listVizinhosDoVertice(1:int nome) throws (1:NullException ne)
+	list<Vertice> listVizinhosDoVertice(1:int nome) throws (1:NullException ne),
+	list<Vertice> listMenorCaminho(1:int nome1, 2:int nome2) throws (1:NullException ne)
 }

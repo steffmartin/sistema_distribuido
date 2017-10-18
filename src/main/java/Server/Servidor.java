@@ -266,4 +266,9 @@ public class Servidor implements Handler.Iface {
         return result;
     }
 
+    @Override
+    public List<Vertice> listMenorCaminho(int nome1, int nome2) throws NullException, TException {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
 }

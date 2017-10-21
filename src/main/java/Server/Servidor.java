@@ -12,6 +12,11 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.thrift.TException;
+import org.apache.thrift.protocol.TBinaryProtocol;
+import org.apache.thrift.protocol.TProtocol;
+import org.apache.thrift.transport.TSocket;
+import org.apache.thrift.transport.TTransport;
+import org.apache.thrift.transport.TTransportException;
 
 /**
  *
@@ -19,8 +24,52 @@ import org.apache.thrift.TException;
  */
 public class Servidor implements Handler.Iface {
 
+    //Grafo
     private final Grafo g = new Grafo(new ConcurrentHashMap<>(), new ConcurrentHashMap<>());
 
+    //DHT
+    private int m;
+    private int serverId;
+    private TTransport transport;
+    TProtocol protocol;
+    private Handler.Client client;
+
+    public Servidor() {
+        super();
+    }
+
+    public Servidor(String[] args) throws ArrayIndexOutOfBoundsException, NumberFormatException {
+        super();
+        this.m = Integer.parseInt(args[1]);
+        System.out.println("M: " + m);
+        System.out.println("Mapeamento: de 0 a " + (Math.pow(2, m) - 1));
+        this.serverId = (int) (Math.random() * Math.pow(2, m));
+        System.out.println("Tentando usar o ID: " + serverId);
+        for (int i = 2; i < 2 * m; i += 2) {
+            try {
+                transport = new TSocket(args[i], Integer.parseInt(args[i + 1]));
+                transport.open();
+                protocol = new TBinaryProtocol(transport);
+                client = new Handler.Client(protocol);
+                if (serverId == client.getServerId()) {
+                    System.out.println("ID " + serverId + " já está sendo usado pelo servidor " + args[i] + "/" + args[i + 1] + ".");
+                    this.serverId = (int) (Math.random() * Math.pow(2, m));
+                    System.out.println("Tentando usar o ID: " + serverId);
+                    i = 0;
+                } else {
+                    System.out.println("O servidor " + args[i] + "/" + args[i + 1] + " está usando o ID " + client.getServerId() + ".");
+                }
+                transport.close();
+            } catch (TTransportException ex) {
+                System.out.println("O servidor " + args[i] + "/" + args[i + 1] + " ainda não está ativo.");
+            } catch (TException ex) {
+                System.out.println("Houve um erro inesperado ao executar esta operação. Mensagem de erro: " + ex);
+            }
+        }
+        System.out.println("ID: " + serverId);
+    }
+
+    //Métodos
     @Override
     public boolean createVertice(Vertice v) throws TException {
         if (v.getNome() < 0) {
@@ -269,6 +318,11 @@ public class Servidor implements Handler.Iface {
     @Override
     public List<Vertice> listMenorCaminho(int nome1, int nome2) throws NullException, TException {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public int getServerId() throws TException {
+        return this.serverId;
     }
 
 }

@@ -25,7 +25,8 @@ public class Principal {
 
         try {
             System.out.println("Ativando servidor (Porta: " + args[0] + ")");
-            handler = new Servidor();
+            //handler = new Servidor();
+            handler = new Servidor(args);
             processor = new Handler.Processor(handler);
             //Esta porta tem que ser passada por parâmetro ou arquivo, alterar!
             TServerTransport serverTransport = new TServerSocket(Integer.parseInt(args[0]));

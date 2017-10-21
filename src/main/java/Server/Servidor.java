@@ -20,7 +20,7 @@ import org.apache.thrift.transport.TTransportException;
 
 /**
  *
- * @author heito
+ * @author heitor, marcelo, rhaniel, steffan
  */
 public class Servidor implements Handler.Iface {
 
@@ -31,42 +31,35 @@ public class Servidor implements Handler.Iface {
     private int m;
     private int serverId;
     private TTransport transport;
-    TProtocol protocol;
-    private Handler.Client client;
+    private TProtocol protocol;
+    private Handler.Client node;
 
     public Servidor() {
         super();
     }
 
-    public Servidor(String[] args) throws ArrayIndexOutOfBoundsException, NumberFormatException {
+    public Servidor(String[] args) throws ArrayIndexOutOfBoundsException, NumberFormatException, TException {
         super();
-        this.m = Integer.parseInt(args[1]);
-        System.out.println("M: " + m);
-        System.out.println("Mapeamento: de 0 a " + (Math.pow(2, m) - 1));
-        this.serverId = (int) (Math.random() * Math.pow(2, m));
-        System.out.println("Tentando usar o ID: " + serverId);
-        for (int i = 2; i < 2 * m; i += 2) {
+        m = Integer.parseInt(args[1]);
+
+        //Escolhendo um ID não repetido
+        serverId = (int) (Math.random() * Math.pow(2, m)); //System.out.println("Tentando usar o ID: " + serverId);
+        for (int i = 2; i < args.length; i += 2) {
             try {
                 transport = new TSocket(args[i], Integer.parseInt(args[i + 1]));
                 transport.open();
                 protocol = new TBinaryProtocol(transport);
-                client = new Handler.Client(protocol);
-                if (serverId == client.getServerId()) {
-                    System.out.println("ID " + serverId + " já está sendo usado pelo servidor " + args[i] + "/" + args[i + 1] + ".");
-                    this.serverId = (int) (Math.random() * Math.pow(2, m));
-                    System.out.println("Tentando usar o ID: " + serverId);
+                node = new Handler.Client(protocol); //System.out.println("O servidor " + args[i] + "/" + args[i + 1] + " está usando o ID " + client.getServerId() + ".");
+                if (serverId == node.getServerId()) {
+                    serverId = (int) (Math.random() * Math.pow(2, this.m)); //System.out.println("ID indisponível. Tentando usar novo ID: " + serverId);
                     i = 0;
-                } else {
-                    System.out.println("O servidor " + args[i] + "/" + args[i + 1] + " está usando o ID " + client.getServerId() + ".");
                 }
                 transport.close();
             } catch (TTransportException ex) {
-                System.out.println("O servidor " + args[i] + "/" + args[i + 1] + " ainda não está ativo.");
-            } catch (TException ex) {
-                System.out.println("Houve um erro inesperado ao executar esta operação. Mensagem de erro: " + ex);
+                //System.out.println("O servidor " + args[i] + "/" + args[i + 1] + " ainda não está ativo.");
             }
         }
-        System.out.println("ID: " + serverId);
+        //System.out.println("ID escolhido: " + serverId);
     }
 
     //Métodos

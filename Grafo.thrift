@@ -8,6 +8,7 @@ struct Vertice
 	2: int cor,
 	3: string desc,
 	4: double peso
+	//,5: optional list<ArestaId> arestas = {}
 }
 
 struct Aresta
@@ -27,8 +28,8 @@ struct ArestaId
 
 struct Grafo
 {
-	1: map<int,Vertice> vertices,
-	2: map<ArestaId,Aresta> arestas
+	1: map<int,Vertice> vertices = {},
+	2: map<ArestaId,Aresta> arestas = {}
 }
 
 exception NullException
@@ -50,5 +51,6 @@ service Handler
 	list<Aresta> listArestasDoGrafo(),
 	list<Aresta> listArestasDoVertice(1:int nome) throws (1:NullException ne),
 	list<Vertice> listVizinhosDoVertice(1:int nome) throws (1:NullException ne),
-	list<Vertice> listMenorCaminho(1:int nome1, 2:int nome2) throws (1:NullException ne)
+	list<Vertice> listMenorCaminho(1:int nome1, 2:int nome2) throws (1:NullException ne),
+	int getServerId()
 }

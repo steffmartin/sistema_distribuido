@@ -21,11 +21,15 @@ public class Principal {
     public static Servidor handler;
     public static Handler.Processor processor;
 
-    public static void main(String[] args) {
+    public static void main(String[] args) { //args deve passar Porta + M + IP 1 + Porta 1 + ... + IP n + Porta n, n < M
 
         try {
             System.out.println("Ativando servidor...");
-            handler = new Servidor(args);//handler = new Servidor();
+            if (args.length > 1) {
+                handler = new Servidor(args);
+            } else {
+                handler = new Servidor();
+            }
             processor = new Handler.Processor(handler);
             TServerTransport serverTransport = new TServerSocket(Integer.parseInt(args[0]));
             TServer server = new TThreadPoolServer(new TThreadPoolServer.Args(serverTransport).processor(processor));

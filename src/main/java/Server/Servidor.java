@@ -19,8 +19,25 @@ import org.apache.thrift.TException;
  */
 public class Servidor implements Handler.Iface {
 
+    //Grafo
     private final Grafo g = new Grafo(new ConcurrentHashMap<>(), new ConcurrentHashMap<>());
 
+    //DHT
+    private int m;
+    private int serverId;
+
+    public Servidor() {
+        super();
+    }
+
+    public Servidor(String[] args) throws ArrayIndexOutOfBoundsException, NumberFormatException {
+        super();
+        this.m = Integer.parseInt(args[1]);
+        this.serverId = (int) (Math.random() * Math.pow(2, m));
+        System.out.println(serverId);
+    }
+
+    //Métodos
     @Override
     public boolean createVertice(Vertice v) throws TException {
         if (v.getNome() < 0) {
@@ -268,6 +285,11 @@ public class Servidor implements Handler.Iface {
 
     @Override
     public List<Vertice> listMenorCaminho(int nome1, int nome2) throws NullException, TException {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public int getServerId() throws TException {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 

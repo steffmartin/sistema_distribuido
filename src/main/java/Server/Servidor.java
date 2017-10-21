@@ -28,11 +28,15 @@ public class Servidor implements Handler.Iface {
     private final Grafo g = new Grafo(new ConcurrentHashMap<>(), new ConcurrentHashMap<>());
 
     //DHT
-    private int m;
-    private int serverId;
+    private int m; // M será = 5 no projeto, mas este valor é passado por parâmetro
+    private String[] servers; // Será a lista com todos servidores (IPs e Portas) passadas no parâmetro
+    private int serverId; // O ID deste servidor
+    private Object[][] ft; // Será a Finger Table, tamanho máximo = M e terá até M nós indexados
+
     private TTransport transport;
     private TProtocol protocol;
     private Handler.Client node;
+    private boolean last = true; // Flag para que o último nó a se conectar comece a montagem da FT
 
     public Servidor() {
         super();
@@ -41,25 +45,50 @@ public class Servidor implements Handler.Iface {
     public Servidor(String[] args) throws ArrayIndexOutOfBoundsException, NumberFormatException, TException {
         super();
         m = Integer.parseInt(args[1]);
+        if (args.length > Math.pow(2, m) || args.length < 2) {
+            throw new ArrayIndexOutOfBoundsException(); //Previne que o M não seja informado ou que tenha mais servidores do que 2^m -1
+        }
+        servers = new String[args.length - 2];
+        System.arraycopy(args, 2, servers, 0, args.length - 2);
 
         //Escolhendo um ID não repetido
-        serverId = (int) (Math.random() * Math.pow(2, m)); //System.out.println("Tentando usar o ID: " + serverId);
-        for (int i = 2; i < args.length; i += 2) {
+        serverId = (int) (Math.random() * Math.pow(2, m));
+        System.out.println("Tentando usar o ID: " + serverId);
+        for (int i = 0; i < servers.length; i += 2) {
             try {
-                transport = new TSocket(args[i], Integer.parseInt(args[i + 1]));
+                transport = new TSocket(servers[i], Integer.parseInt(servers[i + 1]));
                 transport.open();
                 protocol = new TBinaryProtocol(transport);
-                node = new Handler.Client(protocol); //System.out.println("O servidor " + args[i] + "/" + args[i + 1] + " está usando o ID " + client.getServerId() + ".");
+                node = new Handler.Client(protocol);
+                System.out.println("O servidor " + servers[i] + "/" + servers[i + 1] + " está usando o ID " + node.getServerId() + ".");
                 if (serverId == node.getServerId()) {
-                    serverId = (int) (Math.random() * Math.pow(2, this.m)); //System.out.println("ID indisponível. Tentando usar novo ID: " + serverId);
-                    i = 0;
+                    serverId = (int) (Math.random() * Math.pow(2, m));
+                    System.out.println("ID indisponível. Tentando usar novo ID: " + serverId);
+                    i = -2;
                 }
                 transport.close();
             } catch (TTransportException ex) {
-                //System.out.println("O servidor " + args[i] + "/" + args[i + 1] + " ainda não está ativo.");
+                last = false;
+                System.out.println("O servidor " + servers[i] + "/" + servers[i + 1] + " ainda não está online.");
             }
         }
-        //System.out.println("ID escolhido: " + serverId);
+
+        //O último servidor a ficar online avisa os outros para montarem a Finger Table
+        if (last) {
+            for (int i = 0; i < servers.length; i += 2) {
+                try {
+                    transport = new TSocket(servers[i], Integer.parseInt(servers[i + 1]));
+                    transport.open();
+                    protocol = new TBinaryProtocol(transport);
+                    node = new Handler.Client(protocol);
+                    node.setFt();
+                    transport.close();
+                } catch (TTransportException ex) {
+                    throw new TException();
+                }
+            }
+            this.setFt();
+        }
     }
 
     //Métodos
@@ -316,6 +345,12 @@ public class Servidor implements Handler.Iface {
     @Override
     public int getServerId() throws TException {
         return this.serverId;
+    }
+
+    @Override
+    public void setFt() throws TException {
+        ft = new Object[m][2];
+        System.out.println("FT montada!");
     }
 
 }

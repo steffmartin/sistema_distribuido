@@ -52,5 +52,7 @@ service Handler
 	list<Aresta> listArestasDoVertice(1:int nome) throws (1:NullException ne),
 	list<Vertice> listVizinhosDoVertice(1:int nome) throws (1:NullException ne),
 	list<Vertice> listMenorCaminho(1:int nome1, 2:int nome2) throws (1:NullException ne),
-	int getServerId()
+	int getServerId(),
+	oneway void setFt()
 }
+	

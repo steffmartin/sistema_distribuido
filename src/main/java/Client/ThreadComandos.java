@@ -17,7 +17,7 @@ import org.apache.thrift.transport.TTransportException;
 
 /**
  *
- * @author MarceloPrado, Rhaniel Cristhian
+ * @author heitor, marcelo, rhaniel, steffan
  */
 public class ThreadComandos extends Thread {
 

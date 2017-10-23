@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TBinaryProtocol;
@@ -44,6 +45,7 @@ public class Servidor implements Handler.Iface {
 
     public Servidor(String[] args) throws ArrayIndexOutOfBoundsException, NumberFormatException, TException {
         super();
+
         m = Integer.parseInt(args[1]);
         if (args.length > Math.pow(2, m) || args.length < 2) {
             throw new ArrayIndexOutOfBoundsException(); //Previne que o M não seja informado ou que tenha mais servidores do que 2^m -1
@@ -56,17 +58,13 @@ public class Servidor implements Handler.Iface {
         System.out.println("Tentando usar o ID: " + serverId);
         for (int i = 0; i < servers.length; i += 2) {
             try {
-                transport = new TSocket(servers[i], Integer.parseInt(servers[i + 1]));
-                transport.open();
-                protocol = new TBinaryProtocol(transport);
-                node = new Handler.Client(protocol);
+                conectar(servers[i], servers[i + 1]);
                 System.out.println("O servidor " + servers[i] + "/" + servers[i + 1] + " está usando o ID " + node.getServerId() + ".");
                 if (serverId == node.getServerId()) {
                     serverId = (int) (Math.random() * Math.pow(2, m));
                     System.out.println("ID indisponível. Tentando usar novo ID: " + serverId);
                     i = -2;
                 }
-                transport.close();
             } catch (TTransportException ex) {
                 last = false;
                 System.out.println("O servidor " + servers[i] + "/" + servers[i + 1] + " ainda não está online.");
@@ -77,18 +75,24 @@ public class Servidor implements Handler.Iface {
         if (last) {
             for (int i = 0; i < servers.length; i += 2) {
                 try {
-                    transport = new TSocket(servers[i], Integer.parseInt(servers[i + 1]));
-                    transport.open();
-                    protocol = new TBinaryProtocol(transport);
-                    node = new Handler.Client(protocol);
+                    conectar(servers[i], servers[i + 1]);
                     node.setFt();
-                    transport.close();
                 } catch (TTransportException ex) {
                     throw new TException();
                 }
             }
-            this.setFt();
+            setFt();
         }
+    }
+
+    private void conectar(String ip, String porta) throws TTransportException {
+        if (transport != null && transport.isOpen()) {
+            transport.close();
+        }
+        transport = new TSocket(ip, Integer.parseInt(porta));
+        transport.open();
+        protocol = new TBinaryProtocol(transport);
+        node = new Handler.Client(protocol);
     }
 
     //Métodos
@@ -349,8 +353,36 @@ public class Servidor implements Handler.Iface {
 
     @Override
     public void setFt() throws TException {
-        ft = new Object[m][2];
-        System.out.println("FT montada!");
+        if (ft == null) {
+            ft = new Object[m][2]; //M linhas e 2 colunas (ID, Socket)
+
+            //Obtendo IDs de todos os servidores
+            TreeMap<Integer, TTransport> temp = new TreeMap<>();
+            for (int i = 0; i < servers.length; i += 2) {
+                conectar(servers[i], servers[i + 1]);
+                temp.put(node.getServerId(), transport);
+            }
+
+            //Monta tabela
+            for (int i = 0; i < m; i++) {
+                int ftpi = serverId + (int) Math.pow(2, i);// Não é usado 2 ^ i-1 porque i começa em 0
+                if (ftpi >= Math.pow(2, m)) {
+                    ftpi -= Math.pow(2, m);
+                }
+                ft[i][0] = temp.ceilingKey(ftpi);
+                if (ft[i][0] == null) {
+                    ft[i][0] = temp.firstKey();
+                }
+                ft[i][1] = temp.get((int) ft[i][0]);
+            }
+
+            //Descartar a lista com TODOS os servidores que ficou armazenada temporariamente
+            servers = null;
+            System.out.println("Finger Table:");
+            for (int i = 0; i < m; i++) {
+                System.out.println("|" + (i + 1) + "|" + (int) ft[i][0] + " |");
+            }
+        }
     }
 
 }

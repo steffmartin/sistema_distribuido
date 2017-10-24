@@ -28,20 +28,19 @@ public class Servidor implements Handler.Iface {
     //Grafo
     private final Grafo g = new Grafo(new ConcurrentHashMap<>(), new ConcurrentHashMap<>());
 
+    public Servidor() {
+        super();
+    }
+
     //DHT
     private int m; // M será = 5 no projeto, mas este valor é passado por parâmetro
     private String[] servers; // Será a lista com todos servidores (IPs e Portas) passadas no parâmetro
-    private int serverId, anteriorId; // O ID deste servidor e do servidor anterior a ele
+    private int id, predecessor; // O ID deste servidor e do servidor anterior a ele
     private Object[][] ft; // Será a Finger Table, tamanho máximo = M e terá até M nós indexados
-
     private TTransport transport;
     private TProtocol protocol;
     private Handler.Client node;
     private boolean last = true; // Flag para que o último nó a se conectar comece a montagem da FT
-
-    public Servidor() {
-        super();
-    }
 
     public Servidor(String[] args) throws ArrayIndexOutOfBoundsException, NumberFormatException, TException {
         super();
@@ -54,15 +53,15 @@ public class Servidor implements Handler.Iface {
         System.arraycopy(args, 2, servers, 0, args.length - 2);
 
         //Escolhendo um ID não repetido
-        serverId = (int) (Math.random() * Math.pow(2, m));
-        System.out.println("Tentando usar o ID: " + serverId);
+        id = (int) (Math.random() * Math.pow(2, m));
+        System.out.println("Tentando usar o ID: " + id);
         for (int i = 0; i < servers.length; i += 2) {
             try {
                 conectar(servers[i], servers[i + 1]);
                 System.out.println("O servidor " + servers[i] + "/" + servers[i + 1] + " está usando o ID " + node.getServerId() + ".");
-                if (serverId == node.getServerId()) {
-                    serverId = (int) (Math.random() * Math.pow(2, m));
-                    System.out.println("ID indisponível. Tentando usar novo ID: " + serverId);
+                if (id == node.getServerId()) {
+                    id = (int) (Math.random() * Math.pow(2, m));
+                    System.out.println("ID indisponível. Tentando usar novo ID: " + id);
                     i = -2;
                 }
             } catch (TTransportException ex) {
@@ -74,34 +73,111 @@ public class Servidor implements Handler.Iface {
         //O último servidor a ficar online avisa os outros para montarem a Finger Table
         if (last) {
             for (int i = 0; i < servers.length; i += 2) {
-                try {
-                    conectar(servers[i], servers[i + 1]);
-                    node.setFt();
-                } catch (TTransportException ex) {
-                    throw new TException();
-                }
+                conectar(servers[i], servers[i + 1]);
+                node.setFt();
             }
             setFt();
         }
     }
 
+    @Override
+    public int getServerId() throws TException {
+        return this.id;
+    }
+
+    @Override
+    public void setFt() throws TException {
+        if (ft == null) {
+            try {
+                ft = new Object[m][2]; //M linhas e 2 colunas (ID, Socket)
+
+                //Obtendo IDs de todos os servidores
+                TreeMap<Integer, TTransport> temp = new TreeMap<>();
+                for (int i = 0; i < servers.length; i += 2) {
+                    conectar(servers[i], servers[i + 1]);
+                    temp.put(node.getServerId(), transport);
+                }
+
+                //Salvando o servidor anterior
+                if (temp.floorKey(id) != null) {
+                    predecessor = temp.floorKey(id);
+                } else {
+                    predecessor = temp.lastKey();
+                }
+
+                //Monta tabela
+                for (int i = 0; i < m; i++) {
+                    int ftpi = id + (int) Math.pow(2, i);// Não é usado 2 ^ i-1 porque i começa em 0
+                    if (ftpi >= Math.pow(2, m)) {
+                        ftpi -= Math.pow(2, m);
+                    }
+                    if (temp.ceilingKey(ftpi) != null) {
+                        ft[i][0] = temp.ceilingKey(ftpi);
+                    } else {
+                        ft[i][0] = temp.firstKey();
+                    }
+                    ft[i][1] = temp.get((int) ft[i][0]);
+                }
+
+                //Descartar a lista com TODOS os servidores que ficou armazenada temporariamente
+                servers = null;
+                System.out.println("Finger Table:");
+                for (int i = 0; i < m; i++) {
+                    System.out.println("|" + (i + 1) + "|" + (int) ft[i][0] + " |");
+                }
+            } catch (TTransportException ex) {
+                ft = null;
+            }
+        }
+    }
+
+    private boolean isSucc(int k) {
+        k %= (int) Math.pow(2, m); // Função Hash
+        if (predecessor < id) {
+            return predecessor < k && k <= id;
+        } else {
+            return !(id < k && k <= predecessor);
+        }
+    }
+
+    private void conectarSucc(int k) throws TTransportException {
+        k %= (int) Math.pow(2, m); // Função Hash
+        for (int i = m - 1; i >= 0; i--) {
+            if (k >= (int) ft[i][0] || i == 0) {//NÃO É ASSIM QUE REPASSA. VER MELHOR COMO É O ALGORITIMO.
+                conectar((TSocket) ft[i][1]);
+                System.out.println("ID " + id + " repassando requisição para ID " + (int) ft[i][0]);
+                break;
+            }
+        }
+    }
+
     private void conectar(String ip, String porta) throws TTransportException {
+        conectar(new TSocket(ip, Integer.parseInt(porta)));
+    }
+
+    private void conectar(TTransport socket) throws TTransportException {
         if (transport != null && transport.isOpen()) {
             transport.close();
         }
-        transport = new TSocket(ip, Integer.parseInt(porta));
+        transport = socket;
         transport.open();
         protocol = new TBinaryProtocol(transport);
         node = new Handler.Client(protocol);
     }
 
-    //Métodos
+    //Métodos do Grafo
     @Override
     public boolean createVertice(Vertice v) throws TException {
-        if (v.getNome() < 0) {
-            return false;
+        if (isSucc(v.getNome())) {
+            if (v.getNome() < 0) {
+                return false;
+            }
+            System.out.println("Vértice " + v.getNome() + " criado aqui.");
+            return g.vertices.putIfAbsent(v.getNome(), v) == null;
+        } else {
+            conectarSucc(v.getNome());
+            return node.createVertice(v);
         }
-        return g.vertices.putIfAbsent(v.getNome(), v) == null;
     }
 
     @Override
@@ -344,52 +420,6 @@ public class Servidor implements Handler.Iface {
     @Override
     public List<Vertice> listMenorCaminho(int nome1, int nome2) throws NullException, TException {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public int getServerId() throws TException {
-        return this.serverId;
-    }
-
-    @Override
-    public void setFt() throws TException {
-        if (ft == null) {
-            ft = new Object[m][2]; //M linhas e 2 colunas (ID, Socket)
-
-            //Obtendo IDs de todos os servidores
-            TreeMap<Integer, TTransport> temp = new TreeMap<>();
-            for (int i = 0; i < servers.length; i += 2) {
-                conectar(servers[i], servers[i + 1]);
-                temp.put(node.getServerId(), transport);
-            }
-
-            //Salvando o servidor anterior
-            if (temp.floorKey(serverId) != null) {
-                anteriorId = temp.floorKey(serverId);
-            } else {
-                anteriorId = temp.lastKey();
-            }
-
-            //Monta tabela
-            for (int i = 0; i < m; i++) {
-                int ftpi = serverId + (int) Math.pow(2, i);// Não é usado 2 ^ i-1 porque i começa em 0
-                if (ftpi >= Math.pow(2, m)) {
-                    ftpi -= Math.pow(2, m);
-                }
-                ft[i][0] = temp.ceilingKey(ftpi);
-                if (ft[i][0] == null) {
-                    ft[i][0] = temp.firstKey();
-                }
-                ft[i][1] = temp.get((int) ft[i][0]);
-            }
-
-            //Descartar a lista com TODOS os servidores que ficou armazenada temporariamente
-            servers = null;
-            System.out.println("Finger Table:");
-            for (int i = 0; i < m; i++) {
-                System.out.println("|" + (i + 1) + "|" + (int) ft[i][0] + " |");
-            }
-        }
     }
 
 }

@@ -31,7 +31,7 @@ public class Servidor implements Handler.Iface {
     //DHT
     private int m; // M será = 5 no projeto, mas este valor é passado por parâmetro
     private String[] servers; // Será a lista com todos servidores (IPs e Portas) passadas no parâmetro
-    private int serverId; // O ID deste servidor
+    private int serverId, anteriorId; // O ID deste servidor e do servidor anterior a ele
     private Object[][] ft; // Será a Finger Table, tamanho máximo = M e terá até M nós indexados
 
     private TTransport transport;
@@ -361,6 +361,13 @@ public class Servidor implements Handler.Iface {
             for (int i = 0; i < servers.length; i += 2) {
                 conectar(servers[i], servers[i + 1]);
                 temp.put(node.getServerId(), transport);
+            }
+
+            //Salvando o servidor anterior
+            if (temp.floorKey(serverId) != null) {
+                anteriorId = temp.floorKey(serverId);
+            } else {
+                anteriorId = temp.lastKey();
             }
 
             //Monta tabela

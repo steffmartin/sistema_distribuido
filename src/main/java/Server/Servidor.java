@@ -35,7 +35,7 @@ public class Servidor implements Handler.Iface {
     //DHT
     private int m; // M será = 5 no projeto, mas este valor é passado por parâmetro
     private String[] servers; // Será a lista com todos servidores (IPs e Portas) passadas no parâmetro
-    private int id, predecessor; // O ID deste servidor e do servidor anterior a ele
+    private int id, predecessor, sucessor; // O ID deste servidor e do servidor anterior a ele e posterior a ele
     private Object[][] ft; // Será a Finger Table, tamanho máximo = M e terá até M nós indexados
     private TTransport transport;
     private TProtocol protocol;
@@ -119,6 +119,9 @@ public class Servidor implements Handler.Iface {
                     ft[i][1] = temp.get((int) ft[i][0]);
                 }
 
+                //Salvando o servidor seguinte
+                sucessor = (int) ft[0][0];
+
                 //Descartar a lista com TODOS os servidores que ficou armazenada temporariamente
                 servers = null;
                 System.out.println("Finger Table:");
@@ -142,11 +145,22 @@ public class Servidor implements Handler.Iface {
 
     private void conectarSucc(int k) throws TTransportException {
         k %= (int) Math.pow(2, m); // Função Hash
-        for (int i = m - 1; i >= 0; i--) {
-            if (k >= (int) ft[i][0] || i == 0) {//NÃO É ASSIM QUE REPASSA. VER MELHOR COMO É O ALGORITIMO.
+
+        if ((id < sucessor && sucessor >= k) || (id > sucessor && (id < k || k <= sucessor))) {
+            conectar((TSocket) ft[0][1]);
+            System.out.println("ID " + id + " repassando requisição para ID " + (int) ft[0][0]);
+        } else {
+            int i;
+            for (i = 1; i < m - 1; i++) {
+                if ((int) ft[i][0] <= k && k <= (int) ft[i + 1][0]) {
+                    conectar((TSocket) ft[i][1]);
+                    System.out.println("ID " + id + " repassando requisição para ID " + (int) ft[i][0]);
+                    break;
+                }
+            }
+            if (i == m - 1) {
                 conectar((TSocket) ft[i][1]);
                 System.out.println("ID " + id + " repassando requisição para ID " + (int) ft[i][0]);
-                break;
             }
         }
     }
@@ -168,10 +182,10 @@ public class Servidor implements Handler.Iface {
     //Métodos do Grafo
     @Override
     public boolean createVertice(Vertice v) throws TException {
+        if (v.getNome() < 0) {
+            return false;
+        }
         if (isSucc(v.getNome())) {
-            if (v.getNome() < 0) {
-                return false;
-            }
             System.out.println("Vértice " + v.getNome() + " criado aqui.");
             return g.vertices.putIfAbsent(v.getNome(), v) == null;
         } else {

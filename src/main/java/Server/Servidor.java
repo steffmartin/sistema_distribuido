@@ -151,7 +151,7 @@ public class Servidor implements Handler.Iface {
             System.out.println("ID " + id + " repassando requisição para ID " + (int) ft[0][0]);
         } else {
             int i;
-            for (i = 1; i < m - 1; i++) {
+            for (i = 0; i < m - 1; i++) {
                 if ((int) ft[i][0] <= k && k <= (int) ft[i + 1][0]) {
                     conectar((TSocket) ft[i][1]);
                     System.out.println("ID " + id + " repassando requisição para ID " + (int) ft[i][0]);
@@ -242,12 +242,17 @@ public class Servidor implements Handler.Iface {
 
     @Override
     public Vertice readVertice(int nome) throws NullException, TException {
-        try {
-            synchronized (g.vertices.get(nome)) {
-                return g.vertices.get(nome);
+        if (isSucc(nome)) {
+            try {
+                synchronized (g.vertices.get(nome)) {
+                    return g.vertices.get(nome);
+                }
+            } catch (NullPointerException ex) {
+                throw new NullException("O vértice '" + nome + "' não existe");
             }
-        } catch (NullPointerException ex) {
-            throw new NullException("O vértice '" + nome + "' não existe");
+        } else {
+            conectarSucc(nome);
+            return node.readVertice(nome);
         }
     }
 
@@ -276,14 +281,18 @@ public class Servidor implements Handler.Iface {
 
     @Override
     public boolean updateVertice(Vertice v) throws TException {
-        try {
-            synchronized (g.vertices.get(v.getNome())) {
-                return g.vertices.replace(v.getNome(), g.vertices.get(v.getNome()), v);
+        if (isSucc(v.getNome())) {
+            try {
+                synchronized (g.vertices.get(v.getNome())) {
+                    return g.vertices.replace(v.getNome(), g.vertices.get(v.getNome()), v);
+                }
+            } catch (NullPointerException ex) {
+                return false;
             }
-        } catch (NullPointerException ex) {
-            return false;
+        } else {
+            conectarSucc(v.getNome());
+            return node.updateVertice(v);
         }
-
     }
 
     @Override
@@ -339,18 +348,23 @@ public class Servidor implements Handler.Iface {
 
     @Override
     public boolean deleteVertice(int nome) throws TException {
-        try {
-            synchronized (g.vertices.get(nome)) {
-                Set<ArestaId> chaves = g.arestas.keySet();
-                for (ArestaId id : chaves) {
-                    if (id.getNome1() == nome || id.getNome2() == nome) {
-                        this.deleteAresta(id.getNome1(), id.getNome2());
+        if (isSucc(nome)) {
+            try {
+                synchronized (g.vertices.get(nome)) {
+                    Set<ArestaId> chaves = g.arestas.keySet();
+                    for (ArestaId id : chaves) {
+                        if (id.getNome1() == nome || id.getNome2() == nome) {
+                            this.deleteAresta(id.getNome1(), id.getNome2());
+                        }
                     }
+                    return g.vertices.remove(nome) != null;
                 }
-                return g.vertices.remove(nome) != null;
+            } catch (NullPointerException ex) {
+                return false;
             }
-        } catch (NullPointerException ex) {
-            return false;
+        } else {
+            conectarSucc(nome);
+            return node.deleteVertice(nome);
         }
     }
 
@@ -379,7 +393,7 @@ public class Servidor implements Handler.Iface {
 
     @Override
     public List<Vertice> listVerticesDoGrafo() throws TException {
-        synchronized (g.vertices) {
+           synchronized (g.vertices) {
             return new ArrayList<>(g.vertices.values());
         }
     }

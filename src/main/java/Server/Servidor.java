@@ -253,7 +253,7 @@ public class Servidor implements Handler.Iface {
         }
     }
 
-    // Ler vértice - Status revisão estapa 2: pronto, falta testar
+    // Ler vértice - Status revisão estapa 2: pronto e testado
     @Override
     public Vertice readVertice(int nome) throws NullException, TException {
         if (isSucc(nome)) {
@@ -294,7 +294,7 @@ public class Servidor implements Handler.Iface {
         }
     }
 
-    // Atualizar vértice - Status revisão estapa 2: pronto, falta testar
+    // Atualizar vértice - Status revisão estapa 2: pronto e testado
     @Override
     public boolean updateVertice(Vertice v) throws TException {
         if (isSucc(v.getNome())) {
@@ -363,7 +363,7 @@ public class Servidor implements Handler.Iface {
         }
     }
 
-    // Excluir vértice - Status revisão estapa 2: pronto, falta testar, principalmente a questão de exclusão das arestas
+    // Excluir vértice - Status revisão estapa 2: pronto, falta testar a questão de exclusão das arestas, só testei sem arestas
     @Override
     public boolean deleteVertice(int nome) throws TException {
         if (isSucc(nome)) {
@@ -408,19 +408,53 @@ public class Servidor implements Handler.Iface {
         }
     }
 
-    // Listar todos vértices - Status revisão estapa 2: não iniciado
+    // Listar todos vértices - Status revisão estapa 2: pronto e testado, (fazer uma ordenação .sort ?)
     @Override
     public List<Vertice> listVerticesDoGrafo() throws TException {
-        synchronized (g.vertices) {
-            return new ArrayList<>(g.vertices.values());
+        conectarSucc(sucessor);
+        return node.listVerticesDoAnel(id);
+    }
+
+    // Listar os vértices de todos os nós do anel, parando ao dar a volta e chegar no nó que solicitou a lista - Status: pronto e testado
+    @Override
+    public List<Vertice> listVerticesDoAnel(int start) throws TException {
+        if (start == id) {
+            synchronized (g.vertices) {
+                return new ArrayList<>(g.vertices.values());
+            }
+        } else {
+            List<Vertice> lista;
+            synchronized (g.vertices) {
+                lista = new ArrayList<>(g.vertices.values());
+            }
+            conectarSucc(sucessor);
+            lista.addAll(node.listVerticesDoAnel(start));
+            return lista;
         }
     }
 
-    // Listar todas arestas - Status revisão estapa 2: não iniciado
+    // Listar todas arestas - Status revisão estapa 2: pronto, falta testar (vamos ordenar com .sort?)
     @Override
     public List<Aresta> listArestasDoGrafo() throws TException {
-        synchronized (g.arestas) {
-            return new ArrayList<>(g.arestas.values());
+        conectarSucc(sucessor);
+        return node.listArestasDoAnel(id);
+    }
+
+    // Listar as arestas de todos os nós do anel, parando ao dar a volta e chegar no nó que solicitou a lista - Status: pronto, falta testar
+    @Override
+    public List<Aresta> listArestasDoAnel(int start) throws TException {
+        if (start == id) {
+            synchronized (g.arestas) {
+                return new ArrayList<>(g.arestas.values());
+            }
+        } else {
+            List<Aresta> lista;
+            synchronized (g.arestas) {
+                lista = new ArrayList<>(g.arestas.values());
+            }
+            conectarSucc(sucessor);
+            lista.addAll(node.listArestasDoAnel(start));
+            return lista;
         }
     }
 

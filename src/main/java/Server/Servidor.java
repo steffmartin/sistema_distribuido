@@ -9,7 +9,6 @@ import Grafo.*;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.thrift.TException;
@@ -25,34 +24,34 @@ import org.apache.thrift.transport.TTransportException;
  */
 public class Servidor implements Handler.Iface {
 
-    //Grafo
+    // Variáveis Comuns (etapa 1)
     private final Grafo g = new Grafo(new ConcurrentHashMap<>(), new ConcurrentHashMap<>());
 
-    public Servidor() {
-        super();
-    }
+    // Variáveis para funcionamento P2P (etapa 2)
+    private int m;                                  // A quantidade máxima de nós é de 2^m e os IDs vão de 0 a 2^m -1
+    private int id, predecessor, sucessor;          // O ID deste servidor e do servidor anterior a ele e posterior a ele
+    private String[] servers;                       // Será a lista com todos servidores (IPs e Portas) passadas no parâmetro, temporário até montar a FT
+    private Object[][] ft;                          // Será a Finger Table, terá M nós indexados
+    private boolean last = true;                    // Flag para que o último nó a se conectar comece a montagem da Finger Table
+    private TTransport transport;                   // Para conexão p2p
+    private TProtocol protocol;                     // Para conexão p2p
+    private Handler.Client node;                    // Para conexão p2p
 
-    //DHT
-    private int m; // M será = 5 no projeto, mas este valor é passado por parâmetro
-    private String[] servers; // Será a lista com todos servidores (IPs e Portas) passadas no parâmetro
-    private int id, predecessor, sucessor; // O ID deste servidor e do servidor anterior a ele e posterior a ele
-    private Object[][] ft; // Será a Finger Table, tamanho máximo = M e terá até M nós indexados
-    private TTransport transport;
-    private TProtocol protocol;
-    private Handler.Client node;
-    private boolean last = true; // Flag para que o último nó a se conectar comece a montagem da FT
-
+    // Construtor e métodos auto-executados (etapa 2)
     public Servidor(String[] args) throws ArrayIndexOutOfBoundsException, NumberFormatException, TException {
         super();
 
+        // Salvando M e validando o tamanho do args (minimo 2, maximo 2^(m+1))
         m = Integer.parseInt(args[1]);
-        if (args.length > Math.pow(2, m) || args.length < 2) {
-            throw new ArrayIndexOutOfBoundsException(); //Previne que o M não seja informado ou que tenha mais servidores do que 2^m -1
+        if (args.length > Math.pow(2, m + 1) || args.length < 2) {
+            throw new ArrayIndexOutOfBoundsException();
         }
+
+        // Deixando uma lista com todos os servidores temporariamente no nó, será descartada após montar a Finger Table
         servers = new String[args.length - 2];
         System.arraycopy(args, 2, servers, 0, args.length - 2);
 
-        //Escolhendo um ID não repetido
+        // Escolhendo um ID aleatório (e verificando nos outros servidores para não repetir)
         id = (int) (Math.random() * Math.pow(2, m));
         System.out.println("Tentando usar o ID: " + id);
         for (int i = 0; i < servers.length; i += 2) {
@@ -61,8 +60,8 @@ public class Servidor implements Handler.Iface {
                 System.out.println("O servidor " + servers[i] + "/" + servers[i + 1] + " está usando o ID " + node.getServerId() + ".");
                 if (id == node.getServerId()) {
                     id = (int) (Math.random() * Math.pow(2, m));
-                    System.out.println("ID indisponível. Tentando usar novo ID: " + id);
                     i = -2;
+                    System.out.println("ID indisponível. Tentando usar novo ID: " + id);
                 }
             } catch (TTransportException ex) {
                 last = false;
@@ -70,7 +69,7 @@ public class Servidor implements Handler.Iface {
             }
         }
 
-        //O último servidor a ficar online avisa os outros para montarem a Finger Table
+        //O último servidor a ficar online avisa os outros para montarem a Finger Table e então monta sua própria FT
         if (last) {
             for (int i = 0; i < servers.length; i += 2) {
                 conectar(servers[i], servers[i + 1]);
@@ -80,62 +79,72 @@ public class Servidor implements Handler.Iface {
         }
     }
 
+    // Método necessário para um servidor saber o ID do outro e não repetir
     @Override
     public int getServerId() throws TException {
         return this.id;
     }
 
+    // Método necessário pois a Finger Table só pode ser montada após todos ficarem online e terem seus IDs
     @Override
     public void setFt() throws TException {
         if (ft == null) {
-            try {
-                ft = new Object[m][2]; //M linhas e 2 colunas (ID, Socket)
+            ft = new Object[m][2]; //M linhas e 2 colunas (ID, Socket)
 
-                //Obtendo IDs de todos os servidores
-                TreeMap<Integer, TTransport> temp = new TreeMap<>();
-                for (int i = 0; i < servers.length; i += 2) {
+            // Obtendo IDs de todos os servidores listados no parâmetro
+            TreeMap<Integer, TTransport> temp = new TreeMap<>();
+            for (int i = 0; i < servers.length; i += 2) {
+                try {
                     conectar(servers[i], servers[i + 1]);
                     temp.put(node.getServerId(), transport);
+                } catch (TTransportException ex) {
+                    // Se houver algum erro de conexão e der esta exceção, o servidor com erro ficará fora da montagem da FT
                 }
+            }
 
-                //Salvando o servidor anterior
-                if (temp.floorKey(id) != null) {
-                    predecessor = temp.floorKey(id);
+            // Salvando o ID do servidor anterior
+            if (temp.floorKey(id) != null) {
+                predecessor = temp.floorKey(id);
+            } else {
+                predecessor = temp.lastKey();
+            }
+
+            // Montando tabela (FT)
+            for (int i = 0; i < m; i++) {
+                int ftpi = id + (int) Math.pow(2, i);// Não é usado 2 ^ i-1 porque i já começa em 0 aqui
+                if (ftpi >= Math.pow(2, m)) {
+                    ftpi -= Math.pow(2, m);
+                }
+                if (temp.ceilingKey(ftpi) != null) {
+                    ft[i][0] = temp.ceilingKey(ftpi);
                 } else {
-                    predecessor = temp.lastKey();
+                    ft[i][0] = temp.firstKey();
                 }
+                ft[i][1] = temp.get((int) ft[i][0]);
+            }
 
-                //Monta tabela
-                for (int i = 0; i < m; i++) {
-                    int ftpi = id + (int) Math.pow(2, i);// Não é usado 2 ^ i-1 porque i começa em 0
-                    if (ftpi >= Math.pow(2, m)) {
-                        ftpi -= Math.pow(2, m);
-                    }
-                    if (temp.ceilingKey(ftpi) != null) {
-                        ft[i][0] = temp.ceilingKey(ftpi);
-                    } else {
-                        ft[i][0] = temp.firstKey();
-                    }
-                    ft[i][1] = temp.get((int) ft[i][0]);
-                }
+            // Salvando o ID do servidor seguinte
+            sucessor = (int) ft[0][0];
 
-                //Salvando o servidor seguinte
-                sucessor = (int) ft[0][0];
+            // Descartar a lista com TODOS os servidores que ficou armazenada temporariamente
+            servers = null;
 
-                //Descartar a lista com TODOS os servidores que ficou armazenada temporariamente
-                servers = null;
-                System.out.println("Finger Table:");
-                for (int i = 0; i < m; i++) {
-                    System.out.println("|" + (i + 1) + "|" + (int) ft[i][0] + " |");
-                }
-            } catch (TTransportException ex) {
-                ft = null;
+            // Impressão para conferência
+            System.out.println("Finger Table:");
+            for (int i = 0; i < m; i++) {
+                System.out.println("| " + (i + 1) + " | " + (int) ft[i][0] + " |");
             }
         }
     }
 
+    // Método com a função Hash para K
+    private int hash(int k) {
+        return k % (int) Math.pow(2, m);
+    }
+
+    // Método para saber se o nó atual é sucessor de uma chave K
     private boolean isSucc(int k) {
-        k %= (int) Math.pow(2, m); // Função Hash
+        k = hash(k);
         if (predecessor < id) {
             return predecessor < k && k <= id;
         } else {
@@ -143,9 +152,9 @@ public class Servidor implements Handler.Iface {
         }
     }
 
+    // Método para se conectar ao nó sucessor de uma chave K, usando somente a Finger Table
     private void conectarSucc(int k) throws TTransportException {
-        k %= (int) Math.pow(2, m); // Função Hash
-
+        k = hash(k);
         if ((id < sucessor && sucessor >= k) || (id > sucessor && (id < k || k <= sucessor))) {
             conectar((TSocket) ft[0][1]);
             System.out.println("ID " + id + " repassando requisição para ID " + (int) ft[0][0]);
@@ -165,21 +174,24 @@ public class Servidor implements Handler.Iface {
         }
     }
 
+    // Método para abrir conexão com um outro nó, recebe IP e Porta
     private void conectar(String ip, String porta) throws TTransportException {
         conectar(new TSocket(ip, Integer.parseInt(porta)));
     }
 
-    private void conectar(TTransport socket) throws TTransportException {
-        if (transport != null && transport.isOpen()) {
-            transport.close();
+    // Método para abrir conexão com um outro nó, recebe Socket
+    private void conectar(TSocket transport) throws TTransportException {
+        if (this.transport != null && this.transport.isOpen()) {
+            this.transport.close();
         }
-        transport = socket;
-        transport.open();
-        protocol = new TBinaryProtocol(transport);
+        this.transport = transport;
+        this.transport.open();
+        protocol = new TBinaryProtocol(this.transport);
         node = new Handler.Client(protocol);
     }
 
-    //Métodos do Grafo
+    // Métodos do Grafo (etapa 1) revistos (etapa 2)
+    // Criar vértice - Status revisão estapa 2: pronto e testado
     @Override
     public boolean createVertice(Vertice v) throws TException {
         if (v.getNome() < 0) {
@@ -194,6 +206,7 @@ public class Servidor implements Handler.Iface {
         }
     }
 
+    // Criar aresta - Status revisão estapa 2: não iniciado
     @Override
     public boolean createAresta(Aresta a) throws TException {
         ArestaId id = new ArestaId(a.getVertice1(), a.getVertice2());
@@ -240,6 +253,7 @@ public class Servidor implements Handler.Iface {
         }
     }
 
+    // Ler vértice - Status revisão estapa 2: pronto, falta testar
     @Override
     public Vertice readVertice(int nome) throws NullException, TException {
         if (isSucc(nome)) {
@@ -256,6 +270,7 @@ public class Servidor implements Handler.Iface {
         }
     }
 
+    // Ler aresta - Status revisão estapa 2: não iniciado
     @Override
     public Aresta readAresta(int nome1, int nome2) throws NullException, TException {
         ArestaId id = new ArestaId(nome1, nome2);
@@ -279,6 +294,7 @@ public class Servidor implements Handler.Iface {
         }
     }
 
+    // Atualizar vértice - Status revisão estapa 2: pronto, falta testar
     @Override
     public boolean updateVertice(Vertice v) throws TException {
         if (isSucc(v.getNome())) {
@@ -295,6 +311,7 @@ public class Servidor implements Handler.Iface {
         }
     }
 
+    // Atualizar aresta - Status revisão estapa 2: não iniciado
     @Override
     public boolean updateAresta(Aresta a) throws TException {
         ArestaId id = new ArestaId(a.getVertice1(), a.getVertice2());
@@ -346,16 +363,15 @@ public class Servidor implements Handler.Iface {
         }
     }
 
+    // Excluir vértice - Status revisão estapa 2: pronto, falta testar, principalmente a questão de exclusão das arestas
     @Override
     public boolean deleteVertice(int nome) throws TException {
         if (isSucc(nome)) {
             try {
                 synchronized (g.vertices.get(nome)) {
-                    Set<ArestaId> chaves = g.arestas.keySet();
-                    for (ArestaId id : chaves) {
-                        if (id.getNome1() == nome || id.getNome2() == nome) {
-                            this.deleteAresta(id.getNome1(), id.getNome2());
-                        }
+                    List<Aresta> deletar = listArestasDoVertice(nome);
+                    for (Aresta a : deletar) {
+                        deleteAresta(a.getVertice1(), a.getVertice2());
                     }
                     return g.vertices.remove(nome) != null;
                 }
@@ -368,6 +384,7 @@ public class Servidor implements Handler.Iface {
         }
     }
 
+    // Excluir aresta - Status revisão estapa 2: não iniciado
     @Override
     public boolean deleteAresta(int nome1, int nome2) throws TException {
         ArestaId id = new ArestaId(nome1, nome2);
@@ -391,13 +408,15 @@ public class Servidor implements Handler.Iface {
         }
     }
 
+    // Listar todos vértices - Status revisão estapa 2: não iniciado
     @Override
     public List<Vertice> listVerticesDoGrafo() throws TException {
-           synchronized (g.vertices) {
+        synchronized (g.vertices) {
             return new ArrayList<>(g.vertices.values());
         }
     }
 
+    // Listar todas arestas - Status revisão estapa 2: não iniciado
     @Override
     public List<Aresta> listArestasDoGrafo() throws TException {
         synchronized (g.arestas) {
@@ -405,6 +424,7 @@ public class Servidor implements Handler.Iface {
         }
     }
 
+    // Listar arestas do vértice - Status revisão estapa 2: não iniciado
     @Override
     public List<Aresta> listArestasDoVertice(int nome) throws NullException, TException {
         if (!g.vertices.containsKey(nome)) {
@@ -422,6 +442,7 @@ public class Servidor implements Handler.Iface {
         return list;
     }
 
+    // Listar vizinhos do vértice - Status revisão estapa 2: não iniciado
     @Override
     public List<Vertice> listVizinhosDoVertice(int nome) throws NullException, TException {
         List<Aresta> list = this.listArestasDoVertice(nome);
@@ -445,9 +466,11 @@ public class Servidor implements Handler.Iface {
         return result;
     }
 
+    // Métodos do Grafo (etapa 2)
+    // Listar menor caminho - Status revisão estapa 2: não iniciado
     @Override
     public List<Vertice> listMenorCaminho(int nome1, int nome2) throws NullException, TException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        throw new NullException("Ainda não suportado.");
     }
 
 }

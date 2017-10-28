@@ -39,6 +39,7 @@ exception NullException
 
 service Handler
 {
+	// Métodos que o cliente vai usar
 	bool createVertice(1:Vertice v),
 	bool createAresta(1:Aresta a),
 	Vertice readVertice(1:int nome) throws (1:NullException ne),
@@ -52,7 +53,10 @@ service Handler
 	list<Aresta> listArestasDoVertice(1:int nome) throws (1:NullException ne),
 	list<Vertice> listVizinhosDoVertice(1:int nome) throws (1:NullException ne),
 	list<Vertice> listMenorCaminho(1:int nome1, 2:int nome2) throws (1:NullException ne),
+	// Métodos que o servidor vai usar
 	int getServerId(),
-	oneway void setFt()
+	oneway void setFt(),
+	list<Vertice> listVerticesDoAnel(1:int start),
+	list<Aresta> listArestasDoAnel(1:int start)
 }
 	

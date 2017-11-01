@@ -24,17 +24,17 @@ import org.apache.thrift.transport.TTransportException;
  */
 public class Servidor implements Handler.Iface {
 
-    // Variáveis Comuns (etapa 1)
+    // Variáveis Comuns
     private final Grafo g = new Grafo(new ConcurrentHashMap<>(), new ConcurrentHashMap<>());
 
-    // Variáveis para funcionamento P2P (etapa 2)
+    // Variáveis para funcionamento P2P
     private int m;                                  // A quantidade máxima de nós é de 2^m e os IDs vão de 0 a 2^m -1
     private int id, predecessor, sucessor;          // O ID deste servidor e do servidor anterior a ele e posterior a ele
     private String[] servers;                       // Será a lista com todos servidores (IPs e Portas) passadas no parâmetro, temporário até montar a FT
     private Object[][] ft;                          // Será a Finger Table, terá M nós indexados
     private boolean last = true;                    // Flag para que o último nó a se conectar comece a montagem da Finger Table
 
-    // Construtor e métodos auto-executados (etapa 2)
+    // Construtor e métodos auto-executados
     public Servidor(String[] args) throws ArrayIndexOutOfBoundsException, NumberFormatException, TException {
         super();
 
@@ -88,11 +88,11 @@ public class Servidor implements Handler.Iface {
             ft = new Object[m][2]; //M linhas e 2 colunas (ID, Socket)
 
             // Obtendo IDs de todos os servidores listados no parâmetro
-            TreeMap<Integer, Handler.Client> temp = new TreeMap<>();
+            TreeMap<Integer, String[]> temp = new TreeMap<>();
             for (int i = 0; i < servers.length; i += 2) {
                 try {
                     Handler.Client node = conectar(servers[i], servers[i + 1]);
-                    temp.put(node.getServerId(), node);
+                    temp.put(node.getServerId(), new String[]{servers[i], servers[i + 1]});
                 } catch (TTransportException ex) {
                     // Se houver algum erro de conexão e der esta exceção, o servidor com erro ficará fora da montagem da FT
                 }
@@ -139,7 +139,7 @@ public class Servidor implements Handler.Iface {
     }
 
     // Método para saber se o nó atual é sucessor de uma chave K
-    public boolean isSucc(int k) {
+    private boolean isSucc(int k) {
         k = hash(k);
         if (predecessor < id) {
             return predecessor < k && k <= id;
@@ -151,20 +151,23 @@ public class Servidor implements Handler.Iface {
     // Método para se conectar ao nó sucessor de uma chave K, usando somente a Finger Table
     private Handler.Client conectarSucc(int k) throws TTransportException {
         k = hash(k);
+        String[] node = (String[]) ft[m - 1][1];
         if ((id < sucessor && sucessor >= k) || (id > sucessor && (id < k || k <= sucessor))) {
             System.out.println("ID " + id + " repassando requisição para ID " + (int) ft[0][0]);
-            return (Handler.Client) ft[0][1];
+            node = (String[]) ft[0][1];
         } else {
             int i;
             for (i = 0; i < m - 1; i++) {
                 if ((int) ft[i][0] <= k && k <= (int) ft[i + 1][0]) {
                     System.out.println("ID " + id + " repassando requisição para ID " + (int) ft[i][0]);
-                    return (Handler.Client) ft[i][1];
+                    node = (String[]) ft[i][1];
                 }
             }
-            System.out.println("ID " + id + " repassando requisição para ID " + (int) ft[i][0]);
-            return (Handler.Client) ft[m - 1][1];
+            if (i == m - 1) {
+                System.out.println("ID " + id + " repassando requisição para ID " + (int) ft[m - 1][0]);
+            }
         }
+        return conectar(node[0], node[1]);
     }
 
     // Método para abrir conexão com um outro nó, recebe IP e Porta
@@ -452,7 +455,7 @@ public class Servidor implements Handler.Iface {
     }
 
     public List<Aresta> listArestasDoVertice(int nome) throws NullException, TException {
-       
+
         readVertice(nome);
         List<Aresta> list = listArestasDoGrafo();
         Iterator<Aresta> it = list.iterator();
@@ -463,7 +466,7 @@ public class Servidor implements Handler.Iface {
                 it.remove();
             }
         }
-        return list;      
+        return list;
     }
 
     // Listar vizinhos do vértice - Status revisão estapa 2: não iniciado

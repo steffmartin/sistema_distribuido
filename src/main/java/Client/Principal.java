@@ -354,19 +354,12 @@ public class Principal {
                         break;
                     }
                     case 15: {//15) Sair
-                        client.createVertice(new Vertice(1,1,"1", 1));
-                        client.createVertice(new Vertice(25,25,"25", 25));
-                        client.createVertice(new Vertice(12,12,"12", 12));
-                        client.createAresta(new Aresta(1, 25, 25, false, "a125"));
-                        client.createAresta(new Aresta(1, 12, 12, false, "a112"));
-                        break;
-                        /*
                         i.printLn("Fechando conexão com o servidor...");
                         transport.close();
                         i.printLn("Conexão encerrada, saindo...");
                         l.close();
                         System.exit(0);
-                        break;*/
+                        break;
                     }
                 }
             }

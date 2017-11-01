@@ -56,6 +56,7 @@ service Handler
 	// Métodos que o servidor vai usar
 	int getServerId(),
 	oneway void setFt(),
+	int bloqueiaVertice(1:int nome),
 	list<Vertice> listVerticesDoAnel(1:int start),
 	list<Aresta> listArestasDoAnel(1:int start)
 }

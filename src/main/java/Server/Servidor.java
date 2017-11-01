@@ -161,6 +161,7 @@ public class Servidor implements Handler.Iface {
                 if ((int) ft[i][0] <= k && k <= (int) ft[i + 1][0]) {
                     System.out.println("ID " + id + " repassando requisição para ID " + (int) ft[i][0]);
                     node = (String[]) ft[i][1];
+                    break;
                 }
             }
             if (i == m - 1) {
@@ -203,7 +204,7 @@ public class Servidor implements Handler.Iface {
         }
     }
 
-    // Criar aresta - Status revisão estapa 2: não iniciado
+    // Criar aresta - Status revisão estapa 2: pronto e testado
     @Override
     public boolean createAresta(Aresta a) throws TException {
         if (a.getVertice1() == a.getVertice2()) {
@@ -256,7 +257,7 @@ public class Servidor implements Handler.Iface {
         }
     }
 
-    // Ler aresta - Status revisão estapa 2: não iniciado
+    // Ler aresta - Status revisão estapa 2: pronto e testado
     @Override
     public Aresta readAresta(int nome1, int nome2) throws NullException, TException {
         int menorId = nome1 < nome2 ? nome1 : nome2;
@@ -354,7 +355,7 @@ public class Servidor implements Handler.Iface {
         }
     }
 
-    // Excluir vértice - Status revisão estapa 2: pronto, falta testar a questão de exclusão das arestas, só testei sem arestas
+    // Excluir vértice - Status revisão estapa 2: pronto e testado
     @Override
     public boolean deleteVertice(int nome) throws TException {
         if (isSucc(nome)) {
@@ -363,11 +364,8 @@ public class Servidor implements Handler.Iface {
                     List<Aresta> deletar = listArestasDoVertice(nome);
                     for (Aresta a : deletar) {
                         int menorId = a.getVertice1() < a.getVertice2() ? a.getVertice1() : a.getVertice2();
-                        if (isSucc(menorId)) {
-                            deleteAresta(a.getVertice1(), a.getVertice2());
-                        } else {
-                            conectarSucc(menorId).deleteAresta(a.getVertice1(), a.getVertice2());
-                        }
+                        
+                        deleteAresta(a.getVertice1(), a.getVertice2());                        
                     }
                     return g.vertices.remove(nome) != null;
                 }
@@ -431,13 +429,13 @@ public class Servidor implements Handler.Iface {
         }
     }
 
-    // Listar todas arestas - Status revisão estapa 2: pronto, falta testar (vamos ordenar com .sort?)
+    // Listar todas arestas - Status revisão estapa 2: pronto e testado (vamos ordenar com .sort?)
     @Override
     public List<Aresta> listArestasDoGrafo() throws TException {
         return conectarSucc(sucessor).listArestasDoAnel(id);
     }
 
-    // Listar as arestas de todos os nós do anel, parando ao dar a volta e chegar no nó que solicitou a lista - Status: pronto, falta testar
+    // Listar as arestas de todos os nós do anel, parando ao dar a volta e chegar no nó que solicitou a lista - Status: pronto e testado
     @Override
     public List<Aresta> listArestasDoAnel(int start) throws TException {
         if (start == id) {
@@ -469,26 +467,24 @@ public class Servidor implements Handler.Iface {
         return list;
     }
 
-    // Listar vizinhos do vértice - Status revisão estapa 2: não iniciado
+    // Listar vizinhos do vértice - Status revisão estapa 2: pronto e testado
     @Override
     public List<Vertice> listVizinhosDoVertice(int nome) throws NullException, TException {
-        List<Aresta> list = this.listArestasDoVertice(nome);
+        List<Aresta> list = listArestasDoVertice(nome);
         List<Vertice> result = new ArrayList<>();
+        
         for (Aresta a : list) {
-            try {
-                synchronized (g.arestas.get(a)) {
-                    if (a.getVertice1() == nome && !result.contains(a.getVertice2())) {
-                        synchronized (g.vertices.get(a.getVertice2())) {
-                            result.add(g.vertices.get(a.getVertice2()));
-                        }
-                    } else if (a.getVertice2() == nome && !result.contains(a.getVertice1())) {
-                        synchronized (g.vertices.get(a.getVertice1())) {
-                            result.add(g.vertices.get(a.getVertice1()));
-                        }
-                    }
-                }
-            } catch (NullPointerException ex) {;
-            }
+            //bloquear aresta
+            if(a.isDirec() && a.getVertice2() == nome) //significa que o vértice 1 da aresta não é vizinho do vértice 'nome'
+                continue;
+
+            Vertice vt1 = readVertice(a.getVertice1());
+            Vertice vt2 = readVertice(a.getVertice2());
+            if (a.getVertice1() == nome && !result.contains(vt1)) {
+                result.add(vt2);                    
+            } else if (a.getVertice2() == nome && !result.contains(vt2)) {
+                result.add(vt1);
+            }  
         }
         return result;
     }

@@ -353,12 +353,20 @@ public class Principal {
 
                         break;
                     }
-                    case 15: {//15) Sair
+                    case 15: {
+                        client.createVertice(new Vertice(1, 1, "1", 1));
+                        client.createVertice(new Vertice(12, 12, "12", 12));
+                        client.createVertice(new Vertice(25, 25, "25", 25));
+                        client.createAresta(new Aresta(1, 12, 1, false, "a112"));
+                        client.createAresta(new Aresta(12, 25, 1, true, "a1225"));
+                        /*//15) Sair                        
+                        
                         i.printLn("Fechando conexão com o servidor...");
                         transport.close();
                         i.printLn("Conexão encerrada, saindo...");
                         l.close();
                         System.exit(0);
+                        */
                         break;
                     }
                 }

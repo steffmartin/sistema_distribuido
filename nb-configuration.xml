@@ -8,12 +8,12 @@ Without this configuration present, some functionality in the IDE may be limited
 -->
     <config-data xmlns="http://www.netbeans.org/ns/maven-config-data/1">
         <configurations>
+            <configuration id="Cliente" profiles=""/>
             <configuration id="Node 1" profiles=""/>
             <configuration id="Node 2" profiles=""/>
             <configuration id="Node 3" profiles=""/>
             <configuration id="Node 4" profiles=""/>
             <configuration id="Node 5" profiles=""/>
-            <configuration id="Cliente" profiles=""/>
         </configurations>
     </config-data>
 </project-shared-configuration>

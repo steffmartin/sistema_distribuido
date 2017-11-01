@@ -33,9 +33,6 @@ public class Servidor implements Handler.Iface {
     private String[] servers;                       // Será a lista com todos servidores (IPs e Portas) passadas no parâmetro, temporário até montar a FT
     private Object[][] ft;                          // Será a Finger Table, terá M nós indexados
     private boolean last = true;                    // Flag para que o último nó a se conectar comece a montagem da Finger Table
-    private TTransport transport;                   // Para conexão p2p
-    private TProtocol protocol;                     // Para conexão p2p
-    private Handler.Client node;                    // Para conexão p2p
 
     // Construtor e métodos auto-executados (etapa 2)
     public Servidor(String[] args) throws ArrayIndexOutOfBoundsException, NumberFormatException, TException {
@@ -56,7 +53,7 @@ public class Servidor implements Handler.Iface {
         System.out.println("Tentando usar o ID: " + id);
         for (int i = 0; i < servers.length; i += 2) {
             try {
-                conectar(servers[i], servers[i + 1]);
+                Handler.Client node = conectar(servers[i], servers[i + 1]);
                 System.out.println("O servidor " + servers[i] + "/" + servers[i + 1] + " está usando o ID " + node.getServerId() + ".");
                 if (id == node.getServerId()) {
                     id = (int) (Math.random() * Math.pow(2, m));
@@ -72,8 +69,7 @@ public class Servidor implements Handler.Iface {
         //O último servidor a ficar online avisa os outros para montarem a Finger Table e então monta sua própria FT
         if (last) {
             for (int i = 0; i < servers.length; i += 2) {
-                conectar(servers[i], servers[i + 1]);
-                node.setFt();
+                conectar(servers[i], servers[i + 1]).setFt();
             }
             setFt();
         }
@@ -92,11 +88,11 @@ public class Servidor implements Handler.Iface {
             ft = new Object[m][2]; //M linhas e 2 colunas (ID, Socket)
 
             // Obtendo IDs de todos os servidores listados no parâmetro
-            TreeMap<Integer, TTransport> temp = new TreeMap<>();
+            TreeMap<Integer, Handler.Client> temp = new TreeMap<>();
             for (int i = 0; i < servers.length; i += 2) {
                 try {
-                    conectar(servers[i], servers[i + 1]);
-                    temp.put(node.getServerId(), transport);
+                    Handler.Client node = conectar(servers[i], servers[i + 1]);
+                    temp.put(node.getServerId(), node);
                 } catch (TTransportException ex) {
                     // Se houver algum erro de conexão e der esta exceção, o servidor com erro ficará fora da montagem da FT
                 }
@@ -143,7 +139,7 @@ public class Servidor implements Handler.Iface {
     }
 
     // Método para saber se o nó atual é sucessor de uma chave K
-    private boolean isSucc(int k) {
+    public boolean isSucc(int k) {
         k = hash(k);
         if (predecessor < id) {
             return predecessor < k && k <= id;
@@ -153,41 +149,40 @@ public class Servidor implements Handler.Iface {
     }
 
     // Método para se conectar ao nó sucessor de uma chave K, usando somente a Finger Table
-    private void conectarSucc(int k) throws TTransportException {
+    private Handler.Client conectarSucc(int k) throws TTransportException {
         k = hash(k);
         if ((id < sucessor && sucessor >= k) || (id > sucessor && (id < k || k <= sucessor))) {
-            conectar((TSocket) ft[0][1]);
             System.out.println("ID " + id + " repassando requisição para ID " + (int) ft[0][0]);
+            return (Handler.Client) ft[0][1];
         } else {
             int i;
             for (i = 0; i < m - 1; i++) {
                 if ((int) ft[i][0] <= k && k <= (int) ft[i + 1][0]) {
-                    conectar((TSocket) ft[i][1]);
                     System.out.println("ID " + id + " repassando requisição para ID " + (int) ft[i][0]);
-                    break;
+                    return (Handler.Client) ft[i][1];
                 }
             }
-            if (i == m - 1) {
-                conectar((TSocket) ft[i][1]);
-                System.out.println("ID " + id + " repassando requisição para ID " + (int) ft[i][0]);
-            }
+            System.out.println("ID " + id + " repassando requisição para ID " + (int) ft[i][0]);
+            return (Handler.Client) ft[m - 1][1];
         }
     }
 
     // Método para abrir conexão com um outro nó, recebe IP e Porta
-    private void conectar(String ip, String porta) throws TTransportException {
-        conectar(new TSocket(ip, Integer.parseInt(porta)));
+    private Handler.Client conectar(String ip, String porta) throws TTransportException {
+        TTransport transport = new TSocket(ip, Integer.parseInt(porta));
+        transport.open();
+        TProtocol protocol = new TBinaryProtocol(transport);
+        return new Handler.Client(protocol);
     }
 
-    // Método para abrir conexão com um outro nó, recebe Socket
-    private void conectar(TSocket transport) throws TTransportException {
-        if (this.transport != null && this.transport.isOpen()) {
-            this.transport.close();
+    @Override
+    public boolean bloqueiaVertice(int nome) throws TException {
+        if (isSucc(nome)) {
+            System.out.println("Vértice " + nome + " bloqueado aqui.");
+            return true;
+        } else {
+            return conectarSucc(nome).bloqueiaVertice(nome);
         }
-        this.transport = transport;
-        this.transport.open();
-        protocol = new TBinaryProtocol(this.transport);
-        node = new Handler.Client(protocol);
     }
 
     // Métodos do Grafo (etapa 1) revistos (etapa 2)
@@ -201,55 +196,44 @@ public class Servidor implements Handler.Iface {
             System.out.println("Vértice " + v.getNome() + " criado aqui.");
             return g.vertices.putIfAbsent(v.getNome(), v) == null;
         } else {
-            conectarSucc(v.getNome());
-            return node.createVertice(v);
+            return conectarSucc(v.getNome()).createVertice(v);
         }
     }
 
     // Criar aresta - Status revisão estapa 2: não iniciado
     @Override
     public boolean createAresta(Aresta a) throws TException {
-        ArestaId id = new ArestaId(a.getVertice1(), a.getVertice2());
-        ArestaId id2 = new ArestaId(a.getVertice2(), a.getVertice1());
-        if (id.getNome1() == id.getNome2()) {
+        if (a.getVertice1() == a.getVertice2()) {
             return false;
         }
-        try {
-            if (id.getNome1() < id.getNome2()) {
-                synchronized (g.vertices.get(id.getNome1())) {
-                    synchronized (g.vertices.get(id.getNome2())) {
-                        try {
-                            synchronized (g.arestas.get(id2)) {
-                                if (!g.arestas.get(id2).isDirec() || !a.isDirec()) {
-                                    return false;
-                                } else {
-                                    throw new NullPointerException();
-                                }
+        ArestaId id = new ArestaId(a.getVertice1(), a.getVertice2());
+        ArestaId id2 = new ArestaId(a.getVertice2(), a.getVertice1());
+        int menorId = id.getNome1() < id.getNome2() ? id.getNome1() : id.getNome2();
+        int maiorId = id.getNome1() > id.getNome2() ? id.getNome1() : id.getNome2();
+
+        if (isSucc(menorId)) {
+            try {
+                synchronized (g.vertices.get(menorId)) {
+                    //conectarSucc(maiorId).bloqueiaVertice(maiorId);
+                    try {
+                        synchronized (g.arestas.get(id2)) {
+                            if (!g.arestas.get(id2).isDirec() || !a.isDirec()) {
+                                return false;
+                            } else {
+                                throw new NullPointerException();
                             }
-                        } catch (NullPointerException ey) {
-                            return g.arestas.putIfAbsent(id, a) == null;
                         }
+                    } catch (NullPointerException ey) {
+                        System.out.println("Aresta " + a.getVertice1() + "," + a.getVertice2() + "criada aqui");
+                        return g.arestas.putIfAbsent(id, a) == null;
                     }
+                    //desbloqueia maiorId no finally
                 }
-            } else {
-                synchronized (g.vertices.get(id.getNome2())) {
-                    synchronized (g.vertices.get(id.getNome1())) {
-                        try {
-                            synchronized (g.arestas.get(id2)) {
-                                if (!g.arestas.get(id2).isDirec() || !a.isDirec()) {
-                                    return false;
-                                } else {
-                                    throw new NullPointerException();
-                                }
-                            }
-                        } catch (NullPointerException ez) {
-                            return g.arestas.putIfAbsent(id, a) == null;
-                        }
-                    }
-                }
+            } catch (NullPointerException ex) {
+                return false;
             }
-        } catch (NullPointerException ex) {
-            return false;
+        } else {
+            return conectarSucc(menorId).createAresta(a);
         }
     }
 
@@ -265,32 +249,36 @@ public class Servidor implements Handler.Iface {
                 throw new NullException("O vértice '" + nome + "' não existe");
             }
         } else {
-            conectarSucc(nome);
-            return node.readVertice(nome);
+            return conectarSucc(nome).readVertice(nome);
         }
     }
 
     // Ler aresta - Status revisão estapa 2: não iniciado
     @Override
     public Aresta readAresta(int nome1, int nome2) throws NullException, TException {
-        ArestaId id = new ArestaId(nome1, nome2);
-        ArestaId id2 = new ArestaId(nome2, nome1);
-        try {
-            synchronized (g.arestas.get(id)) {
-                return g.arestas.get(id);
-            }
-        } catch (NullPointerException ex) {
+        int menorId = nome1 < nome2 ? nome1 : nome2;
+        if (isSucc(menorId)) {
+            ArestaId id = new ArestaId(nome1, nome2);
+            ArestaId id2 = new ArestaId(nome2, nome1);
             try {
-                synchronized (g.arestas.get(id2)) {
-                    if (!g.arestas.get(id2).isDirec()) {
-                        return g.arestas.get(id2);
-                    } else {
-                        throw new NullPointerException();
-                    }
+                synchronized (g.arestas.get(id)) {
+                    return g.arestas.get(id);
                 }
-            } catch (NullPointerException ey) {
-                throw new NullException("A aresta '" + nome1 + "," + nome2 + "' não existe.");
+            } catch (NullPointerException ex) {
+                try {
+                    synchronized (g.arestas.get(id2)) {
+                        if (!g.arestas.get(id2).isDirec()) {
+                            return g.arestas.get(id2);
+                        } else {
+                            throw new NullPointerException();
+                        }
+                    }
+                } catch (NullPointerException ey) {
+                    throw new NullException("A aresta '" + nome1 + "," + nome2 + "' não existe.");
+                }
             }
+        } else {
+            return conectarSucc(menorId).readAresta(nome1, nome2);
         }
     }
 
@@ -306,14 +294,14 @@ public class Servidor implements Handler.Iface {
                 return false;
             }
         } else {
-            conectarSucc(v.getNome());
-            return node.updateVertice(v);
+            return conectarSucc(v.getNome()).updateVertice(v);
         }
     }
 
     // Atualizar aresta - Status revisão estapa 2: não iniciado
     @Override
     public boolean updateAresta(Aresta a) throws TException {
+        //Nao é preciso sincronizar os vértices neste método, tirar isso
         ArestaId id = new ArestaId(a.getVertice1(), a.getVertice2());
         ArestaId id2 = new ArestaId(a.getVertice2(), a.getVertice1());
         try {
@@ -371,7 +359,12 @@ public class Servidor implements Handler.Iface {
                 synchronized (g.vertices.get(nome)) {
                     List<Aresta> deletar = listArestasDoVertice(nome);
                     for (Aresta a : deletar) {
-                        deleteAresta(a.getVertice1(), a.getVertice2());
+                        int menorId = a.getVertice1() < a.getVertice2() ? a.getVertice1() : a.getVertice2();
+                        if (isSucc(menorId)) {
+                            deleteAresta(a.getVertice1(), a.getVertice2());
+                        } else {
+                            conectarSucc(menorId).deleteAresta(a.getVertice1(), a.getVertice2());
+                        }
                     }
                     return g.vertices.remove(nome) != null;
                 }
@@ -379,40 +372,43 @@ public class Servidor implements Handler.Iface {
                 return false;
             }
         } else {
-            conectarSucc(nome);
-            return node.deleteVertice(nome);
+            return conectarSucc(nome).deleteVertice(nome);
         }
     }
 
     // Excluir aresta - Status revisão estapa 2: não iniciado
     @Override
     public boolean deleteAresta(int nome1, int nome2) throws TException {
-        ArestaId id = new ArestaId(nome1, nome2);
-        ArestaId id2 = new ArestaId(nome2, nome1);
-        try {
-            synchronized (g.arestas.get(id)) {
-                return g.arestas.remove(id) != null;
-            }
-        } catch (NullPointerException ex) {
+        int menorId = nome1 < nome2 ? nome1 : nome2;
+        if (isSucc(menorId)) {
+            ArestaId id = new ArestaId(nome1, nome2);
+            ArestaId id2 = new ArestaId(nome2, nome1);
             try {
-                synchronized (g.arestas.get(id2)) {
-                    if (!g.arestas.get(id2).isDirec()) {
-                        return g.arestas.remove(id2) != null;
-                    } else {
-                        throw new NullPointerException();
-                    }
+                synchronized (g.arestas.get(id)) {
+                    return g.arestas.remove(id) != null;
                 }
-            } catch (NullPointerException ey) {
-                return false;
+            } catch (NullPointerException ex) {
+                try {
+                    synchronized (g.arestas.get(id2)) {
+                        if (!g.arestas.get(id2).isDirec()) {
+                            return g.arestas.remove(id2) != null;
+                        } else {
+                            throw new NullPointerException();
+                        }
+                    }
+                } catch (NullPointerException ey) {
+                    return false;
+                }
             }
+        } else {
+            return conectarSucc(menorId).deleteAresta(nome1, nome2);
         }
     }
 
     // Listar todos vértices - Status revisão estapa 2: pronto e testado, (fazer uma ordenação .sort ?)
     @Override
     public List<Vertice> listVerticesDoGrafo() throws TException {
-        conectarSucc(sucessor);
-        return node.listVerticesDoAnel(id);
+        return conectarSucc(sucessor).listVerticesDoAnel(id);
     }
 
     // Listar os vértices de todos os nós do anel, parando ao dar a volta e chegar no nó que solicitou a lista - Status: pronto e testado
@@ -427,8 +423,7 @@ public class Servidor implements Handler.Iface {
             synchronized (g.vertices) {
                 lista = new ArrayList<>(g.vertices.values());
             }
-            conectarSucc(sucessor);
-            lista.addAll(node.listVerticesDoAnel(start));
+            lista.addAll(conectarSucc(sucessor).listVerticesDoAnel(start));
             return lista;
         }
     }
@@ -436,8 +431,7 @@ public class Servidor implements Handler.Iface {
     // Listar todas arestas - Status revisão estapa 2: pronto, falta testar (vamos ordenar com .sort?)
     @Override
     public List<Aresta> listArestasDoGrafo() throws TException {
-        conectarSucc(sucessor);
-        return node.listArestasDoAnel(id);
+        return conectarSucc(sucessor).listArestasDoAnel(id);
     }
 
     // Listar as arestas de todos os nós do anel, parando ao dar a volta e chegar no nó que solicitou a lista - Status: pronto, falta testar
@@ -452,19 +446,15 @@ public class Servidor implements Handler.Iface {
             synchronized (g.arestas) {
                 lista = new ArrayList<>(g.arestas.values());
             }
-            conectarSucc(sucessor);
-            lista.addAll(node.listArestasDoAnel(start));
+            lista.addAll(conectarSucc(sucessor).listArestasDoAnel(start));
             return lista;
         }
     }
 
-    // Listar arestas do vértice - Status revisão estapa 2: não iniciado
-    @Override
     public List<Aresta> listArestasDoVertice(int nome) throws NullException, TException {
-        if (!g.vertices.containsKey(nome)) {
-            throw new NullException("O vértice '" + nome + "' não existe");
-        }
-        List<Aresta> list = this.listArestasDoGrafo();
+       
+        readVertice(nome);
+        List<Aresta> list = listArestasDoGrafo();
         Iterator<Aresta> it = list.iterator();
         Aresta a;
         while (it.hasNext()) {
@@ -473,7 +463,7 @@ public class Servidor implements Handler.Iface {
                 it.remove();
             }
         }
-        return list;
+        return list;      
     }
 
     // Listar vizinhos do vértice - Status revisão estapa 2: não iniciado
@@ -506,5 +496,4 @@ public class Servidor implements Handler.Iface {
     public List<Vertice> listMenorCaminho(int nome1, int nome2) throws NullException, TException {
         throw new NullException("Ainda não suportado.");
     }
-
 }

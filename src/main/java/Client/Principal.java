@@ -164,11 +164,10 @@ public class Principal {
                         nomeB = l.lerInteiro();
                         i.print("Peso: ");
                         peso = l.lerReal();
-                        
                         i.print("Descrição: ");
                         desc = l.lerTexto();
-                        
-                        try{
+
+                        try {
                             Aresta a = client.readAresta(nome, nomeB);
                             a.setDesc(desc);
                             a.setPeso(peso);
@@ -178,8 +177,7 @@ public class Principal {
                             } else {
                                 i.printLn("\nA aresta '" + nome + "," + nomeB + "'não pode ser alterada.");
                             }
-                        }
-                        catch(NullException e){
+                        } catch (NullException e) {
                             i.printLn("\nA aresta '" + nome + "," + nomeB + "' não existe.");
                         }
                         break;

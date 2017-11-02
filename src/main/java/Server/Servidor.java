@@ -302,56 +302,31 @@ public class Servidor implements Handler.Iface {
         }
     }
 
-    // Atualizar aresta - Status revisão estapa 2: não iniciado
+    // Atualizar aresta - Status revisão estapa 2: pronto e testado
     @Override
-    public boolean updateAresta(Aresta a) throws TException {
-        //Nao é preciso sincronizar os vértices neste método, tirar isso
+    public boolean updateAresta(Aresta a) throws TException {        
         ArestaId id = new ArestaId(a.getVertice1(), a.getVertice2());
         ArestaId id2 = new ArestaId(a.getVertice2(), a.getVertice1());
-        try {
-            synchronized (g.arestas.get(id)) {
-                if (!g.arestas.containsKey(id2) || a.isDirec()) {
-                    if (id.getNome1() < id.getNome2()) {
-                        synchronized (g.vertices.get(id.getNome1())) {
-                            synchronized (g.vertices.get(id.getNome2())) {
-                                return g.arestas.replace(id, g.arestas.get(id), a);
-                            }
-                        }
-                    } else {
-                        synchronized (g.vertices.get(id.getNome2())) {
-                            synchronized (g.vertices.get(id.getNome1())) {
-                                return g.arestas.replace(id, g.arestas.get(id), a);
-                            }
-                        }
+        
+        int menorId = a.getVertice1() < a.getVertice2() ? a.getVertice1() : a.getVertice2();
+        
+        if(isSucc(menorId)){
+            try {
+                synchronized (g.arestas.get(id)) {                    
+                    return g.arestas.replace(id, g.arestas.get(id), a);                                            
+                }
+            } catch (NullPointerException ex) {
+                try {
+                    synchronized (g.arestas.get(id2)) {                        
+                        return g.arestas.replace(id2, g.arestas.get(id2), a);                        
                     }
-                } else {
+                } catch (NullPointerException ey) {
                     return false;
                 }
             }
-        } catch (NullPointerException ex) {
-            try {
-                synchronized (g.arestas.get(id2)) {
-                    if (!g.arestas.get(id2).isDirec() && !a.isDirec()) {
-                        if (id2.getNome1() < id2.getNome2()) {
-                            synchronized (g.vertices.get(id2.getNome1())) {
-                                synchronized (g.vertices.get(id2.getNome2())) {
-                                    return g.arestas.replace(id2, g.arestas.get(id2), a);
-                                }
-                            }
-                        } else {
-                            synchronized (g.vertices.get(id2.getNome2())) {
-                                synchronized (g.vertices.get(id2.getNome1())) {
-                                    return g.arestas.replace(id2, g.arestas.get(id2), a);
-                                }
-                            }
-                        }
-                    } else {
-                        throw new NullPointerException();
-                    }
-                }
-            } catch (NullPointerException ey) {
-                return false;
-            }
+        }
+        else{
+            return conectarSucc(menorId).updateAresta(a);
         }
     }
 

@@ -164,15 +164,22 @@ public class Principal {
                         nomeB = l.lerInteiro();
                         i.print("Peso: ");
                         peso = l.lerReal();
-                        i.print("Direcionado: ");
-                        direc = l.lerSimNao();
+                        
                         i.print("Descrição: ");
                         desc = l.lerTexto();
+                        
+                        try{
+                            Aresta a = client.readAresta(nome, nomeB);
+                            a.setDesc(desc);
+                            a.setPeso(peso);
 
-                        Aresta a = new Aresta(nome, nomeB, peso, direc, desc);
-                        if (client.updateAresta(a)) {
-                            i.printLn("\nA aresta '" + nome + "," + nomeB + "' foi atualizada com sucesso.");
-                        } else {
+                            if (client.updateAresta(a)) {
+                                i.printLn("\nA aresta '" + nome + "," + nomeB + "' foi atualizada com sucesso.");
+                            } else {
+                                i.printLn("\nA aresta '" + nome + "," + nomeB + "'não pode ser alterada.");
+                            }
+                        }
+                        catch(NullException e){
                             i.printLn("\nA aresta '" + nome + "," + nomeB + "' não existe.");
                         }
                         break;
@@ -353,20 +360,12 @@ public class Principal {
 
                         break;
                     }
-                    case 15: {
-                        client.createVertice(new Vertice(1, 1, "1", 1));
-                        client.createVertice(new Vertice(12, 12, "12", 12));
-                        client.createVertice(new Vertice(25, 25, "25", 25));
-                        client.createAresta(new Aresta(1, 12, 1, false, "a112"));
-                        client.createAresta(new Aresta(12, 25, 1, true, "a1225"));
-                        /*//15) Sair                        
-                        
+                    case 15: {//15) Sair                                                
                         i.printLn("Fechando conexão com o servidor...");
                         transport.close();
                         i.printLn("Conexão encerrada, saindo...");
                         l.close();
                         System.exit(0);
-                        */
                         break;
                     }
                 }
@@ -474,6 +473,7 @@ class Leitor {
 
         try {
             opcao = ler.nextFloat();
+            ler.nextLine();
         } catch (RuntimeException e) {
             System.out.print("Digite um número real: ");
             ler.nextLine();

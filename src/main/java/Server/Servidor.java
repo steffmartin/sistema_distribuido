@@ -32,7 +32,6 @@ public class Servidor implements Handler.Iface {
     private int id, predecessor, sucessor;          // O ID deste servidor e do servidor anterior a ele e posterior a ele
     private String[] servers;                       // Será a lista com todos servidores (IPs e Portas) passadas no parâmetro, temporário até montar a FT
     private Object[][] ft;                          // Será a Finger Table, terá M nós indexados
-    private boolean last = true;                    // Flag para que o último nó a se conectar comece a montagem da Finger Table
 
     // Construtor e métodos auto-executados
     public Servidor(String[] args) throws ArrayIndexOutOfBoundsException, NumberFormatException, TException {
@@ -47,7 +46,8 @@ public class Servidor implements Handler.Iface {
         // Deixando uma lista com todos os servidores temporariamente no nó, será descartada após montar a Finger Table
         servers = new String[args.length - 2];
         System.arraycopy(args, 2, servers, 0, args.length - 2);
-
+        boolean last = true; // Flag para que o último nó a se conectar comece a montagem da Finger Table
+        
         // Escolhendo um ID aleatório (e verificando nos outros servidores para não repetir)
         id = (int) (Math.random() * Math.pow(2, m));
         System.out.println("Tentando usar o ID: " + id);
@@ -186,6 +186,15 @@ public class Servidor implements Handler.Iface {
             return true;
         } else {
             return conectarSucc(nome).bloqueiaVertice(nome);
+        }
+    }
+
+    @Override
+    public void desbloqueiaVertice(int nome) throws TException {
+        if (isSucc(nome)) {
+            System.out.println("Vértice " + nome + " desbloqueado aqui.");
+        } else {
+            conectarSucc(nome).bloqueiaVertice(nome);
         }
     }
 
@@ -340,10 +349,7 @@ public class Servidor implements Handler.Iface {
         if (isSucc(nome)) {
             try {
                 synchronized (g.vertices.get(nome)) {
-                    List<Aresta> deletar = listArestasDoVertice(nome);
-                    for (Aresta a : deletar) {
-                        deleteAresta(a.getVertice1(), a.getVertice2());
-                    }
+                    deleteArestasDoVertice(nome, predecessor);
                     return g.vertices.remove(nome) != null;
                 }
             } catch (NullPointerException ex) {
@@ -380,6 +386,26 @@ public class Servidor implements Handler.Iface {
             }
         } else {
             return conectarSucc(menor).deleteAresta(nome1, nome2);
+        }
+    }
+
+    //Excluir aresta do vértice de forma distribuída
+    @Override
+    public void deleteArestasDoVertice(int nome, int end) throws TException {
+        if (end != id) {
+            conectarSucc(sucessor).deleteArestasDoVertice(nome, end);
+        }
+        List<Aresta> list;
+        synchronized (g.arestas) {
+            list = new ArrayList<>(g.arestas.values());
+        }
+        Iterator<Aresta> it = list.iterator();
+        Aresta a;
+        while (it.hasNext()) {
+            a = it.next();
+            if (a.getVertice1() == nome || a.getVertice2() == nome) {
+                deleteAresta(a.getVertice1(), a.getVertice2());
+            }
         }
     }
 
@@ -429,6 +455,7 @@ public class Servidor implements Handler.Iface {
         }
     }
 
+    @Override
     public List<Aresta> listArestasDoVertice(int nome) throws NullException, TException {
         readVertice(nome);
         List<Aresta> list = listArestasDoGrafo();

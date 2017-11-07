@@ -11,6 +11,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.protocol.TProtocol;
@@ -47,7 +49,7 @@ public class Servidor implements Handler.Iface {
         servers = new String[args.length - 2];
         System.arraycopy(args, 2, servers, 0, args.length - 2);
         boolean last = true; // Flag para que o último nó a se conectar comece a montagem da Finger Table
-        
+
         // Escolhendo um ID aleatório (e verificando nos outros servidores para não repetir)
         id = (int) (Math.random() * Math.pow(2, m));
         System.out.println("Tentando usar o ID: " + id);
@@ -182,8 +184,19 @@ public class Servidor implements Handler.Iface {
     @Override
     public boolean bloqueiaVertice(int nome) throws TException {
         if (isSucc(nome)) {
-            System.out.println("Vértice " + nome + " bloqueado aqui.");
-            return true;
+            try {
+                while (true) {
+                    synchronized (g.vertices.get(nome)) {
+                        if (!g.vertices.get(nome).isBloqueado()) {
+                            g.vertices.get(nome).setBloqueado(true);
+                            return true;
+                        }
+                    }
+                    wait(((int) Math.random() * 1000));
+                }
+            } catch (NullPointerException | InterruptedException ex) {
+                return false;
+            }
         } else {
             return conectarSucc(nome).bloqueiaVertice(nome);
         }
@@ -192,7 +205,12 @@ public class Servidor implements Handler.Iface {
     @Override
     public void desbloqueiaVertice(int nome) throws TException {
         if (isSucc(nome)) {
-            System.out.println("Vértice " + nome + " desbloqueado aqui.");
+            try {
+                synchronized (g.vertices.get(nome)) {
+                    g.vertices.get(nome).setBloqueado(false);
+                }
+            } catch (NullPointerException ex) {
+            }
         } else {
             conectarSucc(nome).bloqueiaVertice(nome);
         }
@@ -206,7 +224,7 @@ public class Servidor implements Handler.Iface {
             return false;
         }
         if (isSucc(v.getNome())) {
-            System.out.println("Vértice " + v.getNome() + " criado aqui.");
+            System.out.println("Executando createVertice(" + v.getNome() + ") aqui.");
             return g.vertices.putIfAbsent(v.getNome(), v) == null;
         } else {
             return conectarSucc(v.getNome()).createVertice(v);
@@ -221,12 +239,12 @@ public class Servidor implements Handler.Iface {
         }
         int menor = a.getVertice1() < a.getVertice2() ? a.getVertice1() : a.getVertice2();
         if (isSucc(menor)) {
+            System.out.println("Executando createAresta(" + a.getVertice1() + "," + a.getVertice2() + ") aqui.");
             ArestaId id = new ArestaId(a.getVertice1(), a.getVertice2());
             ArestaId id2 = new ArestaId(a.getVertice2(), a.getVertice1());
             int maior = a.getVertice1() > a.getVertice2() ? a.getVertice1() : a.getVertice2();
             try {
-                synchronized (g.vertices.get(menor)) {
-                    //conectarSucc(maior).bloqueiaVertice(maior);
+                if (bloqueiaVertice(menor)) {// && bloqueiaVertice(maior)) {
                     try {
                         synchronized (g.arestas.get(id2)) {
                             if (!g.arestas.get(id2).isDirec() || !a.isDirec()) {
@@ -236,13 +254,14 @@ public class Servidor implements Handler.Iface {
                             }
                         }
                     } catch (NullPointerException ey) {
-                        System.out.println("Aresta " + a.getVertice1() + "," + a.getVertice2() + " criada aqui");
                         return g.arestas.putIfAbsent(id, a) == null;
                     }
-                    //desbloqueia maior no finally
+                } else {
+                    return false;
                 }
-            } catch (NullPointerException ex) {
-                return false;
+            } finally {
+                //desbloqueiaVertice(maior);
+                desbloqueiaVertice(menor);
             }
         } else {
             return conectarSucc(menor).createAresta(a);
@@ -253,12 +272,15 @@ public class Servidor implements Handler.Iface {
     @Override
     public Vertice readVertice(int nome) throws NullException, TException {
         if (isSucc(nome)) {
+            System.out.println("Executando readVertice(" + nome + ") aqui.");
             try {
-                synchronized (g.vertices.get(nome)) {
+                if (bloqueiaVertice(nome)) {
                     return g.vertices.get(nome);
+                } else {
+                    throw new NullException("O vértice '" + nome + "' não existe");
                 }
-            } catch (NullPointerException ex) {
-                throw new NullException("O vértice '" + nome + "' não existe");
+            } finally {
+                desbloqueiaVertice(nome);
             }
         } else {
             return conectarSucc(nome).readVertice(nome);
@@ -270,6 +292,7 @@ public class Servidor implements Handler.Iface {
     public Aresta readAresta(int nome1, int nome2) throws NullException, TException {
         int menor = nome1 < nome2 ? nome1 : nome2;
         if (isSucc(menor)) {
+            System.out.println("Executando readAresta(" + nome1 + "," + nome2 + ") aqui.");
             ArestaId id = new ArestaId(nome1, nome2);
             ArestaId id2 = new ArestaId(nome2, nome1);
             try {
@@ -298,12 +321,16 @@ public class Servidor implements Handler.Iface {
     @Override
     public boolean updateVertice(Vertice v) throws TException {
         if (isSucc(v.getNome())) {
+            System.out.println("Executando updateVertice(" + v.getNome() + ") aqui.");
             try {
-                synchronized (g.vertices.get(v.getNome())) {
+                if (bloqueiaVertice(v.getNome())) {
+                    v.setBloqueado(true);
                     return g.vertices.replace(v.getNome(), g.vertices.get(v.getNome()), v);
+                } else {
+                    return false;
                 }
-            } catch (NullPointerException ex) {
-                return false;
+            } finally {
+                desbloqueiaVertice(v.getNome());
             }
         } else {
             return conectarSucc(v.getNome()).updateVertice(v);
@@ -315,6 +342,7 @@ public class Servidor implements Handler.Iface {
     public boolean updateAresta(Aresta a) throws TException {
         int menor = a.getVertice1() < a.getVertice2() ? a.getVertice1() : a.getVertice2();
         if (isSucc(menor)) {
+            System.out.println("Executando updateAresta(" + a.getVertice1() + "," + a.getVertice2() + ") aqui.");
             ArestaId id = new ArestaId(a.getVertice1(), a.getVertice2());
             ArestaId id2 = new ArestaId(a.getVertice2(), a.getVertice1());
             try {
@@ -347,13 +375,16 @@ public class Servidor implements Handler.Iface {
     @Override
     public boolean deleteVertice(int nome) throws TException {
         if (isSucc(nome)) {
+            System.out.println("Executando deleteVertice(" + nome + ") aqui.");
             try {
-                synchronized (g.vertices.get(nome)) {
+                if (bloqueiaVertice(nome)) {
                     deleteArestasDoVertice(nome, predecessor);
                     return g.vertices.remove(nome) != null;
+                } else {
+                    return false;
                 }
-            } catch (NullPointerException ex) {
-                return false;
+            } finally {
+                desbloqueiaVertice(nome);
             }
         } else {
             return conectarSucc(nome).deleteVertice(nome);
@@ -365,6 +396,7 @@ public class Servidor implements Handler.Iface {
     public boolean deleteAresta(int nome1, int nome2) throws TException {
         int menor = nome1 < nome2 ? nome1 : nome2;
         if (isSucc(menor)) {
+            System.out.println("Executando deleteAresta(" + nome1 + "," + nome2 + ") aqui.");
             ArestaId id = new ArestaId(nome1, nome2);
             ArestaId id2 = new ArestaId(nome2, nome1);
             try {
@@ -418,6 +450,7 @@ public class Servidor implements Handler.Iface {
     // Listar os vértices de todos os nós do anel, parando ao dar a volta e chegar no nó que solicitou a lista - Status: pronto e testado
     @Override
     public List<Vertice> listVerticesDoAnel(int end) throws TException {
+        System.out.println("Lendo uma parte dos vértices aqui.");
         if (end == id) {
             synchronized (g.vertices) {
                 return new ArrayList<>(g.vertices.values());
@@ -441,6 +474,7 @@ public class Servidor implements Handler.Iface {
     // Listar as arestas de todos os nós do anel, parando ao dar a volta e chegar no nó que solicitou a lista - Status: pronto e testado
     @Override
     public List<Aresta> listArestasDoAnel(int end) throws TException {
+        System.out.println("Lendo uma parte das arestas aqui.");
         if (end == id) {
             synchronized (g.arestas) {
                 return new ArrayList<>(g.arestas.values());
@@ -476,7 +510,6 @@ public class Servidor implements Handler.Iface {
         List<Aresta> list = listArestasDoVertice(nome);
         List<Vertice> result = new ArrayList<>();
         for (Aresta a : list) {
-            //bloquear aresta
             if (a.isDirec() && a.getVertice2() == nome) //significa que o vértice 1 da aresta não é vizinho do vértice 'nome'
             {
                 continue;

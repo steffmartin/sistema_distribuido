@@ -393,7 +393,7 @@ class Impressora {
     }
 
     public void print(Vertice v) {
-        System.out.print("\n" + v.toString());
+        System.out.print("\n" + v.toString().replace(", bloqueado:true", "").replace(", bloqueado:false", ""));
     }
 
     public void print(Aresta a) {

@@ -191,7 +191,7 @@ public class Servidor implements Handler.Iface {
                             return true;
                         }
                     }
-                    wait((150 + (int) Math.random() * 1000));
+                    wait((150 + ((int) Math.random() * 1000)));
                 }
             } else {
                 return conectarSucc(nome).bloqueiaVertice(nome);

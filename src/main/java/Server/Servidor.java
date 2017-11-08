@@ -11,8 +11,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.protocol.TProtocol;
@@ -182,9 +180,10 @@ public class Servidor implements Handler.Iface {
     }
 
     @Override
-    public boolean bloqueiaVertice(int nome) throws TException {
-        if (isSucc(nome)) {
-            try {
+    public boolean bloqueiaVertice(int nome) {
+        try {
+            if (isSucc(nome)) {
+                System.out.println("Executando bloqueiaVertice(" + nome + ") aqui.");
                 while (true) {
                     synchronized (g.vertices.get(nome)) {
                         if (!g.vertices.get(nome).isBloqueado()) {
@@ -192,27 +191,30 @@ public class Servidor implements Handler.Iface {
                             return true;
                         }
                     }
-                    wait(((int) Math.random() * 1000));
+                    wait((150 + (int) Math.random() * 1000));
                 }
-            } catch (NullPointerException | InterruptedException ex) {
-                return false;
+            } else {
+                return conectarSucc(nome).bloqueiaVertice(nome);
             }
-        } else {
-            return conectarSucc(nome).bloqueiaVertice(nome);
+        } catch (Exception ex) {
+            return false;
         }
     }
 
     @Override
-    public void desbloqueiaVertice(int nome) throws TException {
-        if (isSucc(nome)) {
-            try {
+    public void desbloqueiaVertice(int nome) {
+        try {
+            if (isSucc(nome)) {
+                System.out.println("Executando desbloqueiaVertice(" + nome + ") aqui.");
                 synchronized (g.vertices.get(nome)) {
                     g.vertices.get(nome).setBloqueado(false);
                 }
-            } catch (NullPointerException ex) {
+            } else {
+                conectarSucc(nome).bloqueiaVertice(nome);
             }
-        } else {
-            conectarSucc(nome).bloqueiaVertice(nome);
+        } catch (NullPointerException ex) {
+        } catch (Exception ex) {
+            desbloqueiaVertice(nome);
         }
     }
 
@@ -450,7 +452,7 @@ public class Servidor implements Handler.Iface {
     // Listar os vértices de todos os nós do anel, parando ao dar a volta e chegar no nó que solicitou a lista - Status: pronto e testado
     @Override
     public List<Vertice> listVerticesDoAnel(int end) throws TException {
-        System.out.println("Lendo uma parte dos vértices aqui.");
+        System.out.println("Listando uma parte dos vértices aqui.");
         if (end == id) {
             synchronized (g.vertices) {
                 return new ArrayList<>(g.vertices.values());
@@ -474,7 +476,7 @@ public class Servidor implements Handler.Iface {
     // Listar as arestas de todos os nós do anel, parando ao dar a volta e chegar no nó que solicitou a lista - Status: pronto e testado
     @Override
     public List<Aresta> listArestasDoAnel(int end) throws TException {
-        System.out.println("Lendo uma parte das arestas aqui.");
+        System.out.println("Listando uma parte das arestas aqui.");
         if (end == id) {
             synchronized (g.arestas) {
                 return new ArrayList<>(g.arestas.values());

@@ -434,9 +434,9 @@ public class Servidor implements Handler.Iface {
 
     //Excluir aresta do vértice de forma distribuída
     @Override
-    public void deleteArestasDoVertice(int nome, int end) throws TException {
-        if (end != id) {
-            conectarSucc(sucessor).deleteArestasDoVertice(nome, end);
+    public void deleteArestasDoVertice(int nome, int endId) throws TException {
+        if (endId != id) {
+            conectarSucc(sucessor).deleteArestasDoVertice(nome, endId);
         }
         List<Aresta> list;
         synchronized (g.arestas) {
@@ -460,20 +460,16 @@ public class Servidor implements Handler.Iface {
 
     // Listar os vértices de todos os nós do anel, parando ao dar a volta e chegar no nó que solicitou a lista - Status: pronto e testado
     @Override
-    public List<Vertice> listVerticesDoGrafoNoAnel(int end) throws TException {
-        System.out.println("Listando uma parte dos vértices aqui.");
-        if (end == id) {
-            synchronized (g.vertices) {
-                return new ArrayList<>(g.vertices.values());
-            }
-        } else {
-            List<Vertice> lista;
-            synchronized (g.vertices) {
-                lista = new ArrayList<>(g.vertices.values());
-            }
-            lista.addAll(conectarSucc(sucessor).listVerticesDoGrafoNoAnel(end));
-            return lista;
+    public List<Vertice> listVerticesDoGrafoNoAnel(int endId) throws TException {
+        System.out.println("Listando uma parte de todos os vértices aqui.");
+        List<Vertice> lista;
+        synchronized (g.vertices) {
+            lista = new ArrayList<>(g.vertices.values());
         }
+        if (endId != id) {
+            lista.addAll(conectarSucc(sucessor).listVerticesDoGrafoNoAnel(endId));
+        }
+        return lista;
     }
 
     // Listar todas arestas - Status revisão estapa 2: pronto e testado (vamos ordenar com .sort?)
@@ -484,20 +480,17 @@ public class Servidor implements Handler.Iface {
 
     // Listar as arestas de todos os nós do anel, parando ao dar a volta e chegar no nó que solicitou a lista - Status: pronto e testado
     @Override
-    public List<Aresta> listArestasDoGrafoNoAnel(int end) throws TException {
-        System.out.println("Listando uma parte das arestas aqui.");
-        if (end == id) {
-            synchronized (g.arestas) {
-                return new ArrayList<>(g.arestas.values());
-            }
-        } else {
-            List<Aresta> lista;
-            synchronized (g.arestas) {
-                lista = new ArrayList<>(g.arestas.values());
-            }
-            lista.addAll(conectarSucc(sucessor).listArestasDoGrafoNoAnel(end));
-            return lista;
+    public List<Aresta> listArestasDoGrafoNoAnel(int endId) throws TException {
+        System.out.println("Listando uma parte de todas as arestas aqui.");
+        List<Aresta> lista;
+        synchronized (g.arestas) {
+            lista = new ArrayList<>(g.arestas.values());
         }
+        if (endId != id) {
+            lista.addAll(conectarSucc(sucessor).listArestasDoGrafoNoAnel(endId));
+        }
+        return lista;
+
     }
 
     @Override
@@ -508,12 +501,12 @@ public class Servidor implements Handler.Iface {
 
     @Override
     public List<Aresta> listArestasDoVerticeNoAnel(int nome, int endId) throws NullException, TException {
-        if(endId == id){
-            
+        System.out.println("Listando uma parte das arestas do vértice " + nome + " aqui.");
+        List<Aresta> lista;
+        synchronized (g.arestas) {
+            lista = new ArrayList<>(g.arestas.values());
         }
-        
-        List<Aresta> list = listArestasDoGrafo();
-        Iterator<Aresta> it = list.iterator();
+        Iterator<Aresta> it = lista.iterator();
         Aresta a;
         while (it.hasNext()) {
             a = it.next();
@@ -521,28 +514,36 @@ public class Servidor implements Handler.Iface {
                 it.remove();
             }
         }
-        return list;
+        if (endId != id) {
+            lista.addAll(conectarSucc(sucessor).listArestasDoVerticeNoAnel(nome, endId));
+        }
+        return lista;
     }
 
     // Listar vizinhos do vértice - Status revisão estapa 2: pronto e testado
     @Override
     public List<Vertice> listVizinhosDoVertice(int nome) throws NullException, TException {
-        List<Aresta> list = listArestasDoVertice(nome);
-        List<Vertice> result = new ArrayList<>();
-        for (Aresta a : list) {
-            if (a.isDirec() && a.getVertice2() == nome) //significa que o vértice 1 da aresta não é vizinho do vértice 'nome'
-            {
-                continue;
+        if (isSucc(nome)) {
+            System.out.println("Listando os vizinhos do vértice" + nome + " aqui.");
+            List<Aresta> list = listArestasDoVertice(nome);
+            List<Vertice> result = new ArrayList<>();
+            for (Aresta a : list) {
+                if (a.isDirec() && a.getVertice2() == nome) //significa que o vértice 1 da aresta não é vizinho do vértice 'nome'
+                {
+                    continue;
+                }
+                Vertice vt1 = readVertice(a.getVertice1());
+                Vertice vt2 = readVertice(a.getVertice2());
+                if (a.getVertice1() == nome && !result.contains(vt1)) {
+                    result.add(vt2);
+                } else if (a.getVertice2() == nome && !result.contains(vt2)) {
+                    result.add(vt1);
+                }
             }
-            Vertice vt1 = readVertice(a.getVertice1());
-            Vertice vt2 = readVertice(a.getVertice2());
-            if (a.getVertice1() == nome && !result.contains(vt1)) {
-                result.add(vt2);
-            } else if (a.getVertice2() == nome && !result.contains(vt2)) {
-                result.add(vt1);
-            }
+            return result;
+        } else {
+            return conectarSucc(nome).listVizinhosDoVertice(nome);
         }
-        return result;
     }
 
     // Métodos do Grafo (etapa 2)

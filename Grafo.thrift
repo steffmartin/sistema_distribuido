@@ -52,7 +52,7 @@ service Handler
 	list<Aresta> listArestasDoGrafo(),
 	list<Aresta> listArestasDoVertice(1:int nome) throws (1:NullException ne),
 	list<Vertice> listVizinhosDoVertice(1:int nome) throws (1:NullException ne),
-	list<Vertice> listMenorCaminho(1:int nome1, 2:int nome2) throws (1:NullException ne),
+	list<Vertice> listMenorCaminho(1:int origem, 2:int destino) throws (1:NullException ne),
 	//Métodos extras para uso pelos servidores apenas
 	int getServerId(),
 	oneway void setFt(),
@@ -61,6 +61,7 @@ service Handler
 	oneway void deleteArestasDoVertice(1:int nome, 2:int endId),
 	list<Vertice> listVerticesDoGrafoNoAnel(1:int endId),
 	list<Aresta> listArestasDoGrafoNoAnel(1:int endId),
-	list<Aresta> listArestasDoVerticeNoAnel(1:int nome, 2:int endId) throws (1:NullException ne)
+	list<Aresta> listArestasDoVerticeNoAnel(1:int nome, 2:int endId) throws (1:NullException ne),
+	list<Vertice> menorCaminhoDistribuido(1:int origem, 2:int destino, list<Vertice> visitados) throws (1:NullException ne)
 }
 	

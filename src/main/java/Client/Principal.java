@@ -40,7 +40,7 @@ public class Principal {
             float peso;
             boolean direc;
             int opcao;
-
+            
             //Menu principal
             while (true) {
                 i.printLn(
@@ -57,7 +57,7 @@ public class Principal {
                         + "10) LIST   - Todas as Arestas\n"
                         + "11) LIST   - Arestas de um Vértice\n"
                         + "12) LIST   - Vértices Vizinhos de um Vértice\n"
-                        + "13) DEMO   - Demonstração dos Requisitos\n"
+                        + "13) LIST   - Menor Caminho de A até B\n"
                         + "14) DEMO   - Demonstração da Concorrência\n"
                         + "15) Sair");
                 opcao = l.lerOpcao(1, 15);
@@ -245,92 +245,23 @@ public class Principal {
                         }
                         break;
                     }
-                    case 13: {//13) DEMO   - Demonstração dos Requisitos
+                    case 13: {//13) LIST   - Menor Caminho de A até B
+                        i.print("Nome (Vértice A): ");
+                        nome = l.lerInteiro();
+                        i.print("Nome (Vértice B): ");
+                        nomeB = l.lerInteiro();
 
-                        int j;
-                        for (j = -1; j <= 1; j++) {
+                        try {
+                            List<Vertice> lista = client.listMenorCaminho(nome, nomeB);
+                            if(lista.isEmpty()){
+                                i.printLn("\nNão há um caminho.");
+                            } else {
+                                i.printLn(lista);
+                            }
+                        } catch (NullException ex) {
+                            i.printLn("\n" + ex.mensagem);
+                        }
 
-                            i.printLn("Criar vértice " + j + ": " + client.createVertice(new Vertice(j, j, String.valueOf(j), (double) j)));
-                            i.printLn("Criar vértice repetido " + j + ": " + client.createVertice(new Vertice(j, j, String.valueOf(j), (double) j)));
-                            try {
-                                i.printLn("Ler vértice " + j + ": " + client.readVertice(j).toString());
-                            } catch (NullException ex) {
-                                i.printLn("Ler vértice " + j + ": " + ex.mensagem);
-                            }
-                            i.printLn("Alterar vértice " + j + ": " + client.updateVertice(new Vertice(j, j + 1, String.valueOf(j + 1), (double) j + 1)));
-                            try {
-                                i.printLn("Ler vértice atualizado " + j + ": " + client.readVertice(j).toString());
-                            } catch (NullException ex) {
-                                i.printLn("Ler vértice atualizado " + j + ": " + ex.mensagem);
-                            }
-                            i.printLn("Excluir vértice " + j + ": " + client.deleteVertice(j));
-
-                        }
-                        for (j = 1; j <= 5; j++) {
-                            i.printLn("Criar vértice " + j + ": " + client.createVertice(new Vertice(j, j, String.valueOf(j), (double) j)));
-                        }
-                        for (j = -1; j <= 5; j++) {
-                            try {
-                                i.printLn("Criar aresta " + j + "," + (j + 1) + ": " + client.createAresta(new Aresta(j, (j + 1), (double) j, false, String.valueOf(j))));
-                            } catch (NullException ex) {
-                                i.printLn("Criar aresta " + j + "," + (j + 1) + ": " + ex.mensagem);
-                            }
-                            try {
-                                i.printLn("Criar aresta repetida " + j + "," + (j + 1) + ": " + client.createAresta(new Aresta(j, (j + 1), (double) j, false, String.valueOf(j))));
-                            } catch (NullException ex) {
-                                i.printLn("Criar aresta repetida " + j + "," + (j + 1) + ": " + ex.mensagem);
-                            }
-                            try {
-                                i.printLn("Criar aresta inválida " + j + "," + j + ": " + client.createAresta(new Aresta(j, j, (double) j, false, String.valueOf(j))));
-                            } catch (NullException ex) {
-                                i.printLn("Criar aresta inválida " + j + "," + j + ": " + ex.mensagem);
-                            }
-                            try {
-                                i.printLn("Ler aresta " + j + "," + (j + 1) + ": ");
-                                i.printLn(client.readAresta(j, j + 1));
-                            } catch (NullException ex) {
-                                i.printLn(ex.mensagem);
-                            }
-                            try {
-                                i.printLn("Alterar aresta " + j + "," + (j + 1) + ": " + client.updateAresta(new Aresta(j, (j + 1), (double) j + 1, true, String.valueOf(j + 1))));
-                            } catch (NullException ex) {
-                                i.printLn("Alterar aresta " + j + "," + (j + 1) + ": " + ex.mensagem);
-                            }
-                            try {
-                                i.printLn("Ler aresta atualizada " + j + "," + (j + 1) + ": ");
-                                i.printLn(client.readAresta(j, j + 1));
-                            } catch (NullException ex) {
-                                i.printLn(ex.mensagem);
-                            }
-                            i.printLn("Excluir aresta " + j + "," + (j + 1) + ": " + client.deleteAresta(j, j + 1));
-                        }
-                        for (j = 1; j < 5; j++) {
-                            i.printLn("Criar aresta " + j + "," + (j + 1) + ": " + client.createAresta(new Aresta(j, (j + 1), (double) j, false, String.valueOf(j))));
-                        }
-                        i.printLn("Listas todos os vértices: ");
-                        i.printLn(client.listVerticesDoGrafo());
-                        i.printLn("Listas todas as arestas: ");
-                        i.printLn(client.listArestasDoGrafo());
-                        for (j = 1; j <= 5; j++) {
-                            i.printLn("Listar todas as arestas de " + j + ": ");
-                            i.printLn(client.listArestasDoVertice(j));
-                            i.printLn("Listar todos os vizinhos de " + j + ": ");
-                            i.printLn(client.listVizinhosDoVertice(j));
-                        }
-                        for (j = 1; j <= 2; j++) {
-                            i.printLn("Excluir vértice " + j + ": " + client.deleteVertice(j));
-                        }
-                        i.printLn("Listas todos os vértices: ");
-                        i.printLn(client.listVerticesDoGrafo());
-                        i.printLn("Listas todas as arestas: ");
-                        i.printLn(client.listArestasDoGrafo());
-                        for (j = 3; j < 4; j++) {
-                            i.printLn("Excluir aresta " + j + "," + (j + 1) + ": " + client.deleteAresta(j, j + 1));
-                        }
-                        i.printLn("Listas todos os vértices: ");
-                        i.printLn(client.listVerticesDoGrafo());
-                        i.printLn("Listas todas as arestas: ");
-                        i.printLn(client.listArestasDoGrafo());
                         break;
                     }
                     case 14: {//DEMO   - Demonstração da Concorrência                           

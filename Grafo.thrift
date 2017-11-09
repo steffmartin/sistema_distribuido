@@ -61,6 +61,7 @@ service Handler
 	oneway void deleteArestasDoVertice(1:int nome, 2:int endId),
 	list<Vertice> listVerticesDoGrafoNoAnel(1:int endId),
 	list<Aresta> listArestasDoGrafoNoAnel(1:int endId),
-	list<Aresta> listArestasDoVerticeNoAnel(1:int nome, 2:int endId) throws (1:NullException ne)
+	list<Aresta> listArestasDoVerticeNoAnel(1:int nome, 2:int endId) throws (1:NullException ne),
+	list<Vertice> menorCaminho(1:int ini, 2:int fim, 3:map<int, int> ant, 4:map<int, double> dist)  throws (1:NullException ne)
 }
 	

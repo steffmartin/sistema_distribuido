@@ -7,6 +7,7 @@ package Server;
 
 import Grafo.*;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.TreeMap;
@@ -177,6 +178,7 @@ public class Servidor implements Handler.Iface {
         return conectar(node[0], node[1]);
     }
 
+    // Método para se conectar ao nó sucessor de uma aresta, usando somente a Finger Table
     private Handler.Client conectarSucc(int a, int b) throws TTransportException {
         return conectarSucc(a + b);
     }
@@ -189,6 +191,7 @@ public class Servidor implements Handler.Iface {
         return new Handler.Client(protocol);
     }
 
+    // Método para bloquear vértice independente do servidor que ele esteja, substitui o Syncronized
     @Override
     public boolean bloqueiaVertice(int nome) {
         try {
@@ -213,6 +216,7 @@ public class Servidor implements Handler.Iface {
         }
     }
 
+    // Método para desbloquear um vértice que foi bloqueado em qualquer servidor
     @Override
     public void desbloqueiaVertice(int nome) {
         try {
@@ -230,8 +234,8 @@ public class Servidor implements Handler.Iface {
         }
     }
 
-    // Métodos do Grafo (etapa 1) revistos (etapa 2)
-    // Criar vértice - Status revisão estapa 2: pronto e testado
+    // Métodos do Grafo
+    // Criar vértice
     @Override
     public boolean createVertice(Vertice v) throws TException {
         if (v.getNome() < 0) {
@@ -245,7 +249,7 @@ public class Servidor implements Handler.Iface {
         }
     }
 
-    // Criar aresta - Status revisão estapa 2: pronto e testado
+    // Criar aresta
     @Override
     public boolean createAresta(Aresta a) throws TException {
         if (a.getVertice1() == a.getVertice2()) {
@@ -282,7 +286,7 @@ public class Servidor implements Handler.Iface {
         }
     }
 
-    // Ler vértice - Status revisão estapa 2: pronto e testado
+    // Ler vértice
     @Override
     public Vertice readVertice(int nome) throws NullException, TException {
         if (isSucc(nome)) {
@@ -301,7 +305,7 @@ public class Servidor implements Handler.Iface {
         }
     }
 
-    // Ler aresta - Status revisão estapa 2: pronto e testado
+    // Ler aresta
     @Override
     public Aresta readAresta(int nome1, int nome2) throws NullException, TException {
         if (isSucc(nome1, nome2)) {
@@ -330,7 +334,7 @@ public class Servidor implements Handler.Iface {
         }
     }
 
-    // Atualizar vértice - Status revisão estapa 2: pronto e testado
+    // Atualizar vértice
     @Override
     public boolean updateVertice(Vertice v) throws TException {
         if (isSucc(v.getNome())) {
@@ -350,7 +354,7 @@ public class Servidor implements Handler.Iface {
         }
     }
 
-    // Atualizar aresta - Status revisão estapa 2: pronto e testado
+    // Atualizar aresta
     @Override
     public boolean updateAresta(Aresta a) throws TException {
         if (isSucc(a.getVertice1(), a.getVertice2())) {
@@ -383,7 +387,7 @@ public class Servidor implements Handler.Iface {
         }
     }
 
-    // Excluir vértice - Status revisão estapa 2: pronto e testado
+    // Excluir vértice
     @Override
     public boolean deleteVertice(int nome) throws TException {
         if (isSucc(nome)) {
@@ -403,7 +407,7 @@ public class Servidor implements Handler.Iface {
         }
     }
 
-    // Excluir aresta - Status revisão estapa 2: pronto e testado
+    // Excluir aresta
     @Override
     public boolean deleteAresta(int nome1, int nome2) throws TException {
         if (isSucc(nome1, nome2)) {
@@ -432,7 +436,7 @@ public class Servidor implements Handler.Iface {
         }
     }
 
-    //Excluir aresta do vértice de forma distribuída
+    // Excluir aresta do vértice de forma distribuída (usado pelo método deleteVertice)
     @Override
     public void deleteArestasDoVertice(int nome, int endId) throws TException {
         if (endId != id) {
@@ -452,13 +456,20 @@ public class Servidor implements Handler.Iface {
         }
     }
 
-    // Listar todos vértices - Status revisão estapa 2: pronto e testado, (fazer uma ordenação .sort ?)
+    // Listar todos vértices 
     @Override
     public List<Vertice> listVerticesDoGrafo() throws TException {
-        return listVerticesDoGrafoNoAnel(predecessor);
+        List<Vertice> lista = listVerticesDoGrafoNoAnel(predecessor);
+        lista.sort(new Comparator<Vertice>() {
+            @Override
+            public int compare(final Vertice t, Vertice t1) {
+                return t.getNome() - t1.getNome();
+            }
+        });
+        return lista;
     }
 
-    // Listar os vértices de todos os nós do anel, parando ao dar a volta e chegar no nó que solicitou a lista - Status: pronto e testado
+    // Listar os vértices de todos os nós do anel, parando ao dar a volta e chegar no nó que solicitou a lista
     @Override
     public List<Vertice> listVerticesDoGrafoNoAnel(int endId) throws TException {
         System.out.println("Listando uma parte de todos os vértices aqui.");
@@ -472,13 +483,24 @@ public class Servidor implements Handler.Iface {
         return lista;
     }
 
-    // Listar todas arestas - Status revisão estapa 2: pronto e testado (vamos ordenar com .sort?)
+    // Listar todas arestas
     @Override
     public List<Aresta> listArestasDoGrafo() throws TException {
-        return listArestasDoGrafoNoAnel(predecessor);
+        List<Aresta> lista = listArestasDoGrafoNoAnel(predecessor);
+        lista.sort(new Comparator<Aresta>() {
+            @Override
+            public int compare(Aresta t, Aresta t1) {
+                if (t.getVertice1() - t1.getVertice1() != 0) {
+                    return t.getVertice1() - t1.getVertice1();
+                } else {
+                    return t.getVertice2() - t1.getVertice2();
+                }
+            }
+        });
+        return lista;
     }
 
-    // Listar as arestas de todos os nós do anel, parando ao dar a volta e chegar no nó que solicitou a lista - Status: pronto e testado
+    // Listar as arestas de todos os nós do anel, parando ao dar a volta e chegar no nó que solicitou a lista
     @Override
     public List<Aresta> listArestasDoGrafoNoAnel(int endId) throws TException {
         System.out.println("Listando uma parte de todas as arestas aqui.");
@@ -493,12 +515,25 @@ public class Servidor implements Handler.Iface {
 
     }
 
+    // Listar as arestas de um determinado vértice
     @Override
     public List<Aresta> listArestasDoVertice(int nome) throws NullException, TException {
         readVertice(nome);
-        return listArestasDoVerticeNoAnel(nome, predecessor);
+        List<Aresta> lista = listArestasDoVerticeNoAnel(nome, predecessor);
+        lista.sort(new Comparator<Aresta>() {
+            @Override
+            public int compare(Aresta t, Aresta t1) {
+                if (t.getVertice1() - t1.getVertice1() != 0) {
+                    return t.getVertice1() - t1.getVertice1();
+                } else {
+                    return t.getVertice2() - t1.getVertice2();
+                }
+            }
+        });
+        return lista;
     }
 
+    // Listar as arestas de um determinado vértice, procurando-as em todos os servidores
     @Override
     public List<Aresta> listArestasDoVerticeNoAnel(int nome, int endId) throws NullException, TException {
         System.out.println("Listando uma parte das arestas do vértice " + nome + " aqui.");
@@ -520,7 +555,7 @@ public class Servidor implements Handler.Iface {
         return lista;
     }
 
-    // Listar vizinhos do vértice - Status revisão estapa 2: pronto e testado
+    // Listar vizinhos do vértice
     @Override
     public List<Vertice> listVizinhosDoVertice(int nome) throws NullException, TException {
         if (isSucc(nome)) {
@@ -546,8 +581,7 @@ public class Servidor implements Handler.Iface {
         }
     }
 
-    // Métodos do Grafo (etapa 2)
-    // Listar menor caminho - Status revisão estapa 2: não iniciado
+    // Listar menor caminho de A até B
     @Override
     public List<Vertice> listMenorCaminho(int origem, int destino) throws NullException, TException {
         if (readVertice(origem).getNome() == readVertice(destino).getNome()) {
@@ -559,6 +593,7 @@ public class Servidor implements Handler.Iface {
         }
     }
 
+    // Listar menor caminho de A até B, busca por profundidade
     @Override
     public List<Vertice> menorCaminhoDistribuido(int origem, int destino, List<Vertice> visitados) throws NullException, TException {
         if (isSucc(origem)) {
@@ -591,6 +626,7 @@ public class Servidor implements Handler.Iface {
         }
     }
 
+    // Método auxiliar para calcular o peso do caminho
     private int peso(List<Vertice> caminho) throws NullException, TException {
         int peso = 0;
         for (int i = 0; i < caminho.size() - 1; i++) {

@@ -6,7 +6,6 @@
 package Client;
 
 import Grafo.*;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Scanner;
 import org.apache.thrift.TException;
@@ -58,7 +57,7 @@ public class Principal {
                         + "10) LIST   - Todas as Arestas\n"
                         + "11) LIST   - Arestas de um Vértice\n"
                         + "12) LIST   - Vértices Vizinhos de um Vértice\n"
-                        + "13) LIST   - Busca pelo menor caminho\n"
+                        + "13) DEMO   - Demonstração dos Requisitos\n"
                         + "14) DEMO   - Demonstração da Concorrência\n"
                         + "15) Sair");
                 opcao = l.lerOpcao(1, 15);
@@ -247,76 +246,91 @@ public class Principal {
                         break;
                     }
                     case 13: {//13) DEMO   - Demonstração dos Requisitos
-                        
-                        //Para fins de testes, copie o "//criando grafo" e cole aqui, na proxima linha.                        
-                        i.print("Nome (Vertice A): ");
-                        nome = l.lerInteiro();
-                        
-                        i.print("Nome (Vertice B): ");
-                        nomeB = l.lerInteiro();
 
-                        try {
-                            List<Vertice> lista = client.menorCaminho(nome, nomeB, new HashMap<>(), new HashMap<>());
-                            
-                            i.print("\nCaminho: ");
-                            for(int it = lista.size() - 1; it >= 0; it--){
-                                System.out.print(lista.get(it).getNome());                            
-                                if(it != 0)
-                                    i.print(" - ");
+                        int j;
+                        for (j = -1; j <= 1; j++) {
 
+                            i.printLn("Criar vértice " + j + ": " + client.createVertice(new Vertice(j, j, String.valueOf(j), (double) j)));
+                            i.printLn("Criar vértice repetido " + j + ": " + client.createVertice(new Vertice(j, j, String.valueOf(j), (double) j)));
+                            try {
+                                i.printLn("Ler vértice " + j + ": " + client.readVertice(j).toString());
+                            } catch (NullException ex) {
+                                i.printLn("Ler vértice " + j + ": " + ex.mensagem);
                             }
-                            i.printLn("\n");  
-                        } catch (NullException ex) {
-                            i.printLn("\n" + ex.mensagem);
+                            i.printLn("Alterar vértice " + j + ": " + client.updateVertice(new Vertice(j, j + 1, String.valueOf(j + 1), (double) j + 1)));
+                            try {
+                                i.printLn("Ler vértice atualizado " + j + ": " + client.readVertice(j).toString());
+                            } catch (NullException ex) {
+                                i.printLn("Ler vértice atualizado " + j + ": " + ex.mensagem);
+                            }
+                            i.printLn("Excluir vértice " + j + ": " + client.deleteVertice(j));
+
                         }
-                        
-                        
-                        //criando grafo
-                        /*
-                        Vertice v1 = new Vertice(1, 1, "1", 1.0);
-                        Vertice v2 = new Vertice(2, 2, "2", 1.0);
-                        Vertice v3 = new Vertice(3, 3, "3", 1.0);
-                        Vertice v4 = new Vertice(4, 4, "4", 1.0);
-                        Vertice v5 = new Vertice(5, 5, "5", 1.0);
-                        
-                        Aresta ar1 = new Aresta(1, 2, 1, true, "ar1");
-                        Aresta ar2 = new Aresta(2, 3, 4, true, "ar2");
-                        Aresta ar3 = new Aresta(3, 5, 2, true, "ar3");
-                        Aresta ar4 = new Aresta(2, 4, 5, true, "ar4");
-                        Aresta ar5 = new Aresta(5, 2, 11, true, "ar5");
-                        Aresta ar6 = new Aresta(4, 1, 7, true, "ar6");
-                        Aresta ar7 = new Aresta(4, 5, 3, true, "ar7");
-                        
-                        client.createVertice(v1);
-                        client.createVertice(v2);
-                        client.createVertice(v3);
-                        client.createVertice(v4);
-                        client.createVertice(v5);
-                        
-                        client.createAresta(ar1);
-                        client.createAresta(ar2);
-                        client.createAresta(ar3);
-                        client.createAresta(ar4);
-                        client.createAresta(ar5);
-                        client.createAresta(ar6);
-                        client.createAresta(ar7);
-                        
-                        //fim grafo
-                        
-                        //busca menor caminho
-                        HashMap<Integer, Integer> ant = new HashMap<>();
-                        HashMap<Integer, Double> dist = new HashMap<>();
-                        
-                        List<Vertice> vts = client.menorCaminho(1, 5, ant, dist);
-                        
-                        System.out.print("Caminho: ");
-                        for(int it = vts.size() - 1; it >= 0; it--){
-                            System.out.print(vts.get(it).getNome());                            
-                            if(it != 0)
-                                System.out.print(" - ");
-                            
+                        for (j = 1; j <= 5; j++) {
+                            i.printLn("Criar vértice " + j + ": " + client.createVertice(new Vertice(j, j, String.valueOf(j), (double) j)));
                         }
-                        System.out.println("\n");  */
+                        for (j = -1; j <= 5; j++) {
+                            try {
+                                i.printLn("Criar aresta " + j + "," + (j + 1) + ": " + client.createAresta(new Aresta(j, (j + 1), (double) j, false, String.valueOf(j))));
+                            } catch (NullException ex) {
+                                i.printLn("Criar aresta " + j + "," + (j + 1) + ": " + ex.mensagem);
+                            }
+                            try {
+                                i.printLn("Criar aresta repetida " + j + "," + (j + 1) + ": " + client.createAresta(new Aresta(j, (j + 1), (double) j, false, String.valueOf(j))));
+                            } catch (NullException ex) {
+                                i.printLn("Criar aresta repetida " + j + "," + (j + 1) + ": " + ex.mensagem);
+                            }
+                            try {
+                                i.printLn("Criar aresta inválida " + j + "," + j + ": " + client.createAresta(new Aresta(j, j, (double) j, false, String.valueOf(j))));
+                            } catch (NullException ex) {
+                                i.printLn("Criar aresta inválida " + j + "," + j + ": " + ex.mensagem);
+                            }
+                            try {
+                                i.printLn("Ler aresta " + j + "," + (j + 1) + ": ");
+                                i.printLn(client.readAresta(j, j + 1));
+                            } catch (NullException ex) {
+                                i.printLn(ex.mensagem);
+                            }
+                            try {
+                                i.printLn("Alterar aresta " + j + "," + (j + 1) + ": " + client.updateAresta(new Aresta(j, (j + 1), (double) j + 1, true, String.valueOf(j + 1))));
+                            } catch (NullException ex) {
+                                i.printLn("Alterar aresta " + j + "," + (j + 1) + ": " + ex.mensagem);
+                            }
+                            try {
+                                i.printLn("Ler aresta atualizada " + j + "," + (j + 1) + ": ");
+                                i.printLn(client.readAresta(j, j + 1));
+                            } catch (NullException ex) {
+                                i.printLn(ex.mensagem);
+                            }
+                            i.printLn("Excluir aresta " + j + "," + (j + 1) + ": " + client.deleteAresta(j, j + 1));
+                        }
+                        for (j = 1; j < 5; j++) {
+                            i.printLn("Criar aresta " + j + "," + (j + 1) + ": " + client.createAresta(new Aresta(j, (j + 1), (double) j, false, String.valueOf(j))));
+                        }
+                        i.printLn("Listas todos os vértices: ");
+                        i.printLn(client.listVerticesDoGrafo());
+                        i.printLn("Listas todas as arestas: ");
+                        i.printLn(client.listArestasDoGrafo());
+                        for (j = 1; j <= 5; j++) {
+                            i.printLn("Listar todas as arestas de " + j + ": ");
+                            i.printLn(client.listArestasDoVertice(j));
+                            i.printLn("Listar todos os vizinhos de " + j + ": ");
+                            i.printLn(client.listVizinhosDoVertice(j));
+                        }
+                        for (j = 1; j <= 2; j++) {
+                            i.printLn("Excluir vértice " + j + ": " + client.deleteVertice(j));
+                        }
+                        i.printLn("Listas todos os vértices: ");
+                        i.printLn(client.listVerticesDoGrafo());
+                        i.printLn("Listas todas as arestas: ");
+                        i.printLn(client.listArestasDoGrafo());
+                        for (j = 3; j < 4; j++) {
+                            i.printLn("Excluir aresta " + j + "," + (j + 1) + ": " + client.deleteAresta(j, j + 1));
+                        }
+                        i.printLn("Listas todos os vértices: ");
+                        i.printLn(client.listVerticesDoGrafo());
+                        i.printLn("Listas todas as arestas: ");
+                        i.printLn(client.listArestasDoGrafo());
                         break;
                     }
                     case 14: {//DEMO   - Demonstração da Concorrência                           

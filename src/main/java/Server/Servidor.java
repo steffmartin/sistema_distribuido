@@ -549,8 +549,53 @@ public class Servidor implements Handler.Iface {
     // Métodos do Grafo (etapa 2)
     // Listar menor caminho - Status revisão estapa 2: não iniciado
     @Override
-    public List<Vertice> listMenorCaminho(int nome1, int nome2) throws NullException, TException {
-        throw new NullException("Ainda não suportado.");
+    public List<Vertice> listMenorCaminho(int origem, int destino) throws NullException, TException {
+        if (readVertice(origem).getNome() == readVertice(destino).getNome()) {
+            List<Vertice> lista = new ArrayList<>();
+            lista.add(readVertice(origem));
+            return lista;
+        } else {
+            return menorCaminhoDistribuido(origem, destino, new ArrayList<>());
+        }
     }
 
+    @Override
+    public List<Vertice> menorCaminhoDistribuido(int origem, int destino, List<Vertice> visitados) throws NullException, TException {
+        if (isSucc(origem)) {
+            List<Vertice> menorCaminho = new ArrayList<>();
+            List<Vertice> caminhoAtual = new ArrayList<>();
+            caminhoAtual.addAll(visitados);
+            caminhoAtual.add(readVertice(origem));
+            List<Vertice> vizinhos = listVizinhosDoVertice(origem);
+            for (Vertice v : vizinhos) {
+                if (!visitados.contains(v)) {
+                    List<Vertice> caminho;
+                    if (v.getNome() == destino) {
+                        caminho = caminhoAtual;
+                        caminho.add(v);
+                    } else {
+                        caminho = menorCaminhoDistribuido(v.getNome(), destino, caminhoAtual);
+                    }
+                    try {
+                        if (!caminho.isEmpty() && ((peso(caminho) < peso(menorCaminho)) || menorCaminho.isEmpty())) {
+                            menorCaminho = caminho;
+                        }
+                    } catch (NullException ne) {
+                        //Se der esta exceção, significa que um vértice ou aresta foi excluído enquanto o caminho era calculado. Assim o caminho todo já é inválido
+                    }
+                }
+            }
+            return menorCaminho;
+        } else {
+            return conectarSucc(origem).menorCaminhoDistribuido(origem, destino, visitados);
+        }
+    }
+
+    private int peso(List<Vertice> caminho) throws NullException, TException {
+        int peso = 0;
+        for (int i = 0; i < caminho.size() - 1; i++) {
+            peso += readAresta(caminho.get(i).getNome(), caminho.get(i + 1).getNome()).getPeso();
+        }
+        return peso;
+    }
 }

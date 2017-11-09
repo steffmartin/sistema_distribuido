@@ -7,10 +7,8 @@ package Server;
 
 import Grafo.*;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.thrift.TException;
@@ -554,81 +552,5 @@ public class Servidor implements Handler.Iface {
     public List<Vertice> listMenorCaminho(int nome1, int nome2) throws NullException, TException {
         throw new NullException("Ainda não suportado.");
     }
-    
-    private int procuraMenorDistancia(Map<Integer, Double> dist, Map<Integer, Integer> visitado, List<Vertice> vertices){
-        int i, menor = -1;
-        boolean primeiro = true;
-        
-        for(Vertice v: vertices){
-            if(dist.get(v.getNome()) >= 0 && visitado.get(v.getNome()) == 0){
-                if(primeiro){
-                    menor = v.getNome();
-                    primeiro = false;
-                }
-                else{
-                    if(dist.get(menor) > dist.get(v.getNome()))
-                        menor = v.getNome();
-                }
-            }
-        }
-        return menor;
-    }
-    
-    public List<Vertice> menorCaminho(int ini, int fim, Map<Integer, Integer> ant, Map<Integer, Double> dist)  throws NullException, TException {
-        int i, cont, NV, ind, u;
-                
-        List<Vertice> vertices = listVerticesDoGrafo();
-        HashMap<Integer, Vertice> verticesG = new HashMap<>();
-        HashMap<Integer, Integer> visitado = new HashMap<>();
 
-        cont = NV = vertices.size();
-
-        for(Vertice v:vertices){
-            verticesG.put(v.getNome(), v);
-            visitado.put(v.getNome(), 0);
-            ant.put(v.getNome(), -1);
-            dist.put(v.getNome(), -1.0);
-        }
-
-        dist.replace(ini, 0.0);
-
-        while(cont > 0){
-            u = procuraMenorDistancia(dist, visitado, vertices);
-            if(u == -1)
-                break;
-
-            visitado.replace(u, 1);
-            cont--;
-
-            List<Vertice> list = listVizinhosDoVertice(u);
-
-            for(i = 0; i < list.size(); i++){
-                ind = list.get(i).getNome();
-
-                Aresta ar = readAresta(u, ind);
-                if(dist.get(ind) < 0){                        
-                    dist.replace(ind, dist.get(u) + ar.getPeso());
-                    ant.replace(ind, u);
-                }
-                else{
-                    if(dist.get(ind) > dist.get(u) + ar.getPeso()){
-                        dist.replace(ind, dist.get(u) + ar.getPeso());
-                        ant.replace(ind, u);
-                    }
-                }
-            }
-        }
-
-        List<Vertice> resp = new ArrayList<>();
-        int v = fim;
-        while(v != ini){
-            resp.add(verticesG.get(v));
-            v = ant.get(v);
-            if(v == ini)
-                resp.add(verticesG.get(v));
-        }
-
-        return resp;       
-    }
-    
 }

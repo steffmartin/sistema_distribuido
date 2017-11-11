@@ -20,9 +20,9 @@ import org.apache.thrift.transport.TTransportException;
  * @author heitor, marcelo, rhaniel, steffan
  */
 public class Principal {
-    
+
     public static void main(String[] args) {
-        
+
         try {
             //Configuração cliente-servidor
             System.out.println("Estabelecendo conexão com o servidor (IP e Porta: " + args[0] + ":" + args[1] + ")");
@@ -58,12 +58,12 @@ public class Principal {
                         + "11) LIST   - Arestas de um Vértice\n"
                         + "12) LIST   - Vértices Vizinhos de um Vértice\n"
                         + "13) LIST   - Menor Caminho de A até B\n"
-                        + "14) DEMO   - Demonstração da Concorrência\n"
+                        + "14) TESTE  - Concorrência com Threads\n"
                         + "15) TESTE  - Bloquear Vértice\n"
                         + "16) TESTE  - Desbloquear Vértice\n"
                         + "17) Fechar Cliente");
                 opcao = l.lerOpcao(1, 17);
-                
+
                 switch (opcao) {
                     case 1: {//1) CREATE - Vértice
                         i.print("Nome: ");
@@ -74,7 +74,7 @@ public class Principal {
                         desc = l.lerTexto();
                         i.print("Peso: ");
                         peso = l.lerReal();
-                        
+
                         Vertice v = new Vertice(nome, cor, desc, peso);
                         if (client.createVertice(v)) {
                             i.printLn("\nO vértice '" + nome + "' foi criado com sucesso.");
@@ -86,7 +86,7 @@ public class Principal {
                     case 2: {//2) READ   - Vértice
                         i.print("Nome: ");
                         nome = l.lerInteiro();
-                        
+
                         try {
                             Vertice v = client.readVertice(nome);
                             i.printLn(v);
@@ -104,7 +104,7 @@ public class Principal {
                         desc = l.lerTexto();
                         i.print("Peso: ");
                         peso = l.lerReal();
-                        
+
                         Vertice v = new Vertice(nome, cor, desc, peso);
                         if (client.updateVertice(v)) {
                             i.printLn("\nO vértice '" + nome + "' foi atualizado com sucesso.");
@@ -116,7 +116,7 @@ public class Principal {
                     case 4: {//4) DELETE - Vértice
                         i.print("Nome: ");
                         nome = l.lerInteiro();
-                        
+
                         if (client.deleteVertice(nome)) {
                             i.printLn("\nO vértice '" + nome + "' foi excluído com sucesso.");
                         } else {
@@ -135,14 +135,14 @@ public class Principal {
                         direc = l.lerSimNao();
                         i.print("Descrição: ");
                         desc = l.lerTexto();
-                        
+
                         Aresta a = new Aresta(nome, nomeB, peso, direc, desc);
                         if (client.createAresta(a)) {
                             i.printLn("\nA aresta '" + nome + "," + nomeB + "' foi criada com sucesso.");
                         } else {
                             i.printLn("\nA aresta '" + nome + "," + nomeB + "' não foi criada.");
                         }
-                        
+
                         break;
                     }
                     case 6: {//6) READ   -  Aresta
@@ -150,7 +150,7 @@ public class Principal {
                         nome = l.lerInteiro();
                         i.print("Nome (Vértice B): ");
                         nomeB = l.lerInteiro();
-                        
+
                         try {
                             Aresta a = client.readAresta(nome, nomeB);
                             i.printLn(a);
@@ -168,12 +168,12 @@ public class Principal {
                         peso = l.lerReal();
                         i.print("Descrição: ");
                         desc = l.lerTexto();
-                        
+
                         try {
                             Aresta a = client.readAresta(nome, nomeB);
                             a.setDesc(desc);
                             a.setPeso(peso);
-                            
+
                             if (client.updateAresta(a)) {
                                 i.printLn("\nA aresta '" + nome + "," + nomeB + "' foi atualizada com sucesso.");
                             } else {
@@ -189,7 +189,7 @@ public class Principal {
                         nome = l.lerInteiro();
                         i.print("Nome (Vértice B): ");
                         nomeB = l.lerInteiro();
-                        
+
                         if (client.deleteAresta(nome, nomeB)) {
                             i.printLn("\nA aresta '" + nome + "," + nomeB + "' foi excluída com sucesso.");
                         } else {
@@ -218,7 +218,7 @@ public class Principal {
                     case 11: {//11) LIST   - Arestas de um Vértice
                         i.print("Nome: ");
                         nome = l.lerInteiro();
-                        
+
                         try {
                             List<Aresta> lista = client.listArestasDoVertice(nome);
                             if (lista.isEmpty()) {
@@ -234,7 +234,7 @@ public class Principal {
                     case 12: {//12) LIST   - Vértices Vizinhos de um Vértice
                         i.print("Nome: ");
                         nome = l.lerInteiro();
-                        
+
                         try {
                             List<Vertice> lista = client.listVizinhosDoVertice(nome);
                             if (lista.isEmpty()) {
@@ -252,7 +252,7 @@ public class Principal {
                         nome = l.lerInteiro();
                         i.print("Nome (Vértice B): ");
                         nomeB = l.lerInteiro();
-                        
+
                         try {
                             List<Vertice> lista = client.listMenorCaminho(nome, nomeB);
                             if (lista.isEmpty()) {
@@ -263,7 +263,7 @@ public class Principal {
                         } catch (NullException ex) {
                             i.printLn("\n" + ex.mensagem);
                         }
-                        
+
                         break;
                     }
                     case 14: {//DEMO   - Demonstração da Concorrência                           
@@ -273,7 +273,7 @@ public class Principal {
                         ThreadComandos t3 = new ThreadComandos(args[0], Integer.parseInt(args[1]), "Três");
                         ThreadComandos t4 = new ThreadComandos(args[0], Integer.parseInt(args[1]), "Quatro");
                         ThreadComandos t5 = new ThreadComandos(args[0], Integer.parseInt(args[1]), "Cinco");
-                        
+
                         try {
                             t1.start();
                             t2.start();
@@ -288,7 +288,7 @@ public class Principal {
                         } catch (InterruptedException ex) {
                             System.out.println("Erro no Cliente: Falha ao rodar as threads");
                         }
-                        
+
                         break;
                     }
                     case 15: {//TESTE  - Bloquear Vértice
@@ -305,7 +305,7 @@ public class Principal {
                         i.print("Nome: ");
                         nome = l.lerInteiro();
                         client.desbloqueiaVertice(nome);
-                        i.printLn("\nComando para desbloquear o vértice" + nome + " enviado.");
+                        i.printLn("\nComando para desbloquear o vértice " + nome + " enviado.");
                         break;
                     }
                     case 17: {//15) Sair                                                
@@ -319,47 +319,46 @@ public class Principal {
                 }
             }
         } catch (ArrayIndexOutOfBoundsException | NumberFormatException ex) {
-            System.out.println("Erro nos parâmetros da linha de comando. Mensagem de erro: " + ex);
+            System.out.println("Erro nos parâmetros da linha de comando, o sistema não será iniciado. Mensagem de erro: " + ex);
         } catch (TTransportException ex) {
-            System.out.println("Houve um erro de comunicação com o servidor. Mensagem de erro: " + ex);
+            System.out.println("Houve um erro de comunicação com o servidor, o sistema será finalizado. Mensagem de erro: " + ex);
+            ex.printStackTrace();
         } catch (TException ex) {
-            System.out.println("Houve um erro inesperado ao executar esta operação. Mensagem de erro: ");
+            System.out.println("Houve um erro inesperado ao executar esta operação, o sistema será finalizado. Mensagem de erro: " + ex);
             ex.printStackTrace();
         }
-        
     }
-    
 }
 
 //Classe com métodos para impressão de objetos
 class Impressora {
-    
+
     public void printLn(String texto) {
         System.out.println(texto);
     }
-    
+
     public void print(String texto) {
         System.out.print(texto);
     }
-    
+
     public void print(Vertice v) {
         System.out.print("\n" + v.toString().replace(", bloqueado:true", "").replace(", bloqueado:false", ""));
     }
-    
+
     public void print(Aresta a) {
         System.out.print("\n" + a.toString());
     }
-    
+
     public void printLn(Vertice v) {
         print(v);
         System.out.println("");
     }
-    
+
     public void printLn(Aresta a) {
         print(a);
         System.out.println("");
     }
-    
+
     public void printLn(List<?> lista) {
         if (lista.size() > 0) {
             if (lista.get(0) instanceof Vertice) {
@@ -381,13 +380,13 @@ class Impressora {
 
 //Classe com métodos para leitura facilidada de entradas de usuário
 class Leitor {
-    
+
     private final Scanner ler = new Scanner(System.in);
-    
+
     public int lerOpcao(int min, int max) {
         System.out.print("\nOpção: ");
         int opcao;
-        
+
         try {
             opcao = lerInteiro();
             if (opcao < min || opcao > max) {
@@ -397,13 +396,13 @@ class Leitor {
             System.out.print("Opção não reconhecida, digite um número de " + min + " a " + max + ".");
             opcao = lerOpcao(min, max);
         }
-        
+
         return opcao;
     }
-    
+
     public int lerInteiro() {
         int opcao;
-        
+
         try {
             opcao = ler.nextInt();
             ler.nextLine();
@@ -412,13 +411,13 @@ class Leitor {
             ler.nextLine();
             opcao = lerInteiro();
         }
-        
+
         return opcao;
     }
-    
+
     public float lerReal() {
         float opcao;
-        
+
         try {
             opcao = ler.nextFloat();
             ler.nextLine();
@@ -429,14 +428,14 @@ class Leitor {
         }
         return opcao;
     }
-    
+
     public String lerTexto() {
         return ler.nextLine();
     }
-    
+
     public boolean lerSimNao() {
         boolean opcao;
-        
+
         try {
             opcao = ler.nextBoolean();
             ler.nextLine();
@@ -447,7 +446,7 @@ class Leitor {
         }
         return opcao;
     }
-    
+
     public void close() {
         ler.close();
     }

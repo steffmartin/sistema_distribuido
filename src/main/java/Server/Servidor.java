@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Scanner;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.thrift.TException;
@@ -52,6 +53,10 @@ public class Servidor implements Handler.Iface {
 
         // Escolhendo um ID aleatório (e verificando nos outros servidores para não repetir)
         id = (int) (Math.random() * Math.pow(2, m));
+        /*//Trecho de teste
+        System.out.println("Forçar o ID: ");
+        id = new Scanner(System.in).nextInt();
+        //Fim trecho de teste*/
         System.out.println("Tentando usar o ID: " + id);
         for (int i = 0; i < servers.length; i += 2) {
             try {
@@ -177,7 +182,8 @@ public class Servidor implements Handler.Iface {
         } else {
             int i;
             for (i = 0; i < m - 1; i++) {
-                if ((int) ft[i][0] <= k && k <= (int) ft[i + 1][0]) {
+                //repassa para o nó i se id(i) <=k && k <= id(i+1) ou, se caso id(i+1) < id(i), o que significa que deu a volta no anel, então repassa se id(i) <= k && k <= id(i+1) + 2^m
+                if (((int) ft[i][0] <= k && k <= (int) ft[i + 1][0]) || (((int) ft[i + 1][0] < (int) ft[i][0]) && (int) ft[i][0] <= k && k <= ((int) Math.pow(2, m) + (int) ft[i + 1][0]))) {
                     System.out.println(LocalDateTime.now().toLocalTime().toString() + " ID " + id + " repassando requisição para ID " + (int) ft[i][0]);
                     node = (String[]) ft[i][1]; // Troca para o índice i caso em algum momento atenda à condição do algoritimo de repasse da FT: succ <= k <= succ+1
                     break;

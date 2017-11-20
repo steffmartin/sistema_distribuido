@@ -6,6 +6,7 @@
 package Server;
 
 import Grafo.*;
+import Comandos.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -19,12 +20,19 @@ import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.transport.TSocket;
 import org.apache.thrift.transport.TTransport;
 import org.apache.thrift.transport.TTransportException;
+import io.atomix.catalyst.transport.Address;
+import io.atomix.catalyst.transport.netty.NettyTransport;
+import io.atomix.copycat.server.Commit;
+import io.atomix.copycat.server.CopycatServer;
+import io.atomix.copycat.server.StateMachine;
+import io.atomix.copycat.server.storage.Storage;
+import io.atomix.copycat.server.storage.StorageLevel;
 
 /**
  *
  * @author heitor, marcelo, rhaniel, steffan
  */
-public class Servidor implements Handler.Iface {
+public class Servidor extends StateMachine implements Handler.Iface {
 
     // Variáveis Comuns
     private final Grafo g = new Grafo(new ConcurrentHashMap<>(), new ConcurrentHashMap<>());

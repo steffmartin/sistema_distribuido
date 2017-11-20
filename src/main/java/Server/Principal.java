@@ -23,8 +23,16 @@ public class Principal {
 
     public static void main(String[] args) {
 
+        //Etapa 2:
         //args deve passar Porta_deste_servidor + M + ip_1 + porta_1 + ... + ip_n + porta_n, sendo n < 2^M -1
         //Ex: 8080 5 localhost 8001 124.0.0.1 8082 localhost 8003 ip_3 porta_3 ... ip_31 porta_31
+        
+        //Etapa 3:
+        //args deve passar Porta_deste_servidor + ip_clone_1 + porta_clone_1 + ip_clone_2 + porta_clone_2 + T/F +
+        //+ M + ip_1 + porta_1 + ip_1_clone_1 + porta_1_clone_1 + ip_1_clone_2 + porta_1_clone_2 + ... +
+        //+ ip_n + porta_n + ip_n_clone_1 + porta_n_clone_1 + ip_n_clone_2 + porta_n_clone_2, sendo n < 2^M -1
+        //T/F: indicar T para o primeiro servidor (que irá abrir o cluster) e F par os demais (que irão fazer join)
+        //Ex: 7070 localhost 7071 localhost 7072 5 localhost 8080 localhost 8081 localhost 8082 localhost 9090 localhost 9091 localhost 9092
         
         try {
             System.out.println("Ativando servidor...");

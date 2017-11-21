@@ -48,14 +48,14 @@ public class Servidor extends StateMachine implements Handler.Iface {
         super();
 
         // Salvando M e validando o tamanho do args (minimo 2, maximo 2^(m+1))
-        m = Integer.parseInt(args[1]);
-        if (args.length > Math.pow(2, m + 1) || args.length < 2) {
+        m = Integer.parseInt(args[7]);
+        if (args.length > Math.pow(2, m) + 8 || args.length < 7) {
             throw new ArrayIndexOutOfBoundsException();
         }
 
         // Deixando uma lista com todos os servidores temporariamente no nó, será descartada após montar a Finger Table
-        servers = new String[args.length - 2];
-        System.arraycopy(args, 2, servers, 0, args.length - 2);
+        servers = new String[args.length - 8];
+        System.arraycopy(args, 8, servers, 0, args.length - 8);
         boolean last = true; // Flag para que o último nó a se conectar comece a montagem da Finger Table
 
         // Escolhendo um ID aleatório (e verificando nos outros servidores para não repetir)

@@ -78,7 +78,8 @@ public class Principal {
 
             Thread t2 = new Thread() {
                 @Override
-                public void run() {                    
+                public void run() {  
+                    
                     // Ativando servidor do Thrift, tem que ser última instrução pois após ele nada mais é executado
                     thriftServer.serve();
                 }

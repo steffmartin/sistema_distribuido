@@ -47,39 +47,51 @@ public class Servidor extends StateMachine implements Handler.Iface {
     public Servidor(String[] args) throws ArrayIndexOutOfBoundsException, NumberFormatException, TException {
         super();
 
-        // Salvando M e validando o tamanho do args (minimo 2, maximo 2^(m+1))
-        m = Integer.parseInt(args[7]);
-        if (args.length > Math.pow(2, m) + 8 || args.length < 7) {
+        // Salvando M e validando o tamanho do args (minimo 11, maximo 2^(m+1) + 11)
+        m = Integer.parseInt(args[10]);
+        if (args.length > (Math.pow(2, m) - 1) * 6 + 11 || args.length < 11) {
             throw new ArrayIndexOutOfBoundsException();
         }
 
         // Deixando uma lista com todos os servidores temporariamente no nó, será descartada após montar a Finger Table
-        servers = new String[args.length - 8];
-        System.arraycopy(args, 8, servers, 0, args.length - 8);
+        servers = new String[args.length - 11];
+        System.arraycopy(args, 11, servers, 0, args.length - 11);
         boolean last = true; // Flag para que o último nó a se conectar comece a montagem da Finger Table
 
         // Escolhendo um ID aleatório (e verificando nos outros servidores para não repetir)
-        id = (int) (Math.random() * Math.pow(2, m));
-        System.out.println("Tentando usar o ID: " + id);
-        for (int i = 0; i < servers.length; i += 2) {
-            try {
-                Handler.Client node = conectar(servers[i], servers[i + 1]);
-                System.out.println("O servidor " + servers[i] + "/" + servers[i + 1] + " está usando o ID " + node.getServerId() + ".");
-                if (id == node.getServerId()) {
-                    id = (int) (Math.random() * Math.pow(2, m));
-                    i = -2;
-                    System.out.println("ID indisponível. Tentando usar novo ID: " + id);
+        
+        if(Boolean.parseBoolean(args[3])) {
+            id = (int) (Math.random() * Math.pow(2, m));
+        
+            System.out.println("Tentando usar o ID: " + id);
+            for (int i = 0; i < servers.length; i += 2) {
+                try {
+                    Handler.Client node = conectar(servers[i], servers[i + 1]);
+                    System.out.println("O servidor " + servers[i] + "/" + servers[i + 1] + " está usando o ID " + node.getServerId() + ".");
+                    if (id == node.getServerId()) {
+                        id = (int) (Math.random() * Math.pow(2, m));
+                        i = -2;
+                        System.out.println("ID indisponível. Tentando usar novo ID: " + id);
+                    }
+                } catch (TTransportException ex) {
+                    System.out.println("O servidor " + servers[i] + "/" + servers[i + 1] + " ainda não está online.");
+                    last = false;
                 }
-            } catch (TTransportException ex) {
-                System.out.println("O servidor " + servers[i] + "/" + servers[i + 1] + " ainda não está online.");
-                last = false;
+            }
+
+            //O último servidor a ficar online avisa ao primeiro para montar a sua FT
+            if (last) {
+                conectar(servers[0], servers[1]).setFt();
             }
         }
-
-        //O último servidor a ficar online avisa ao primeiro para montar a sua FT
-        if (last) {
-            conectar(servers[0], servers[1]).setFt();
-        }
+        else{
+            try{
+                id = conectar(args[4], args[5]).getServerId();
+            }
+            catch(TTransportException ex){
+                id = conectar(args[7], args[8]).getServerId();                
+            }            
+        }            
     }
 
     // Método necessário para um servidor saber o ID do outro e não repetir
@@ -96,9 +108,9 @@ public class Servidor extends StateMachine implements Handler.Iface {
 
             // Obtendo IDs de todos os servidores listados no parâmetro
             TreeMap<Integer, String[]> temp = new TreeMap<>();
-            for (int i = 0; i < servers.length; i += 2) {
+            for (int i = 0; i < servers.length; i += 6) {
                 try {
-                    temp.put(conectar(servers[i], servers[i + 1]).getServerId(), new String[]{servers[i], servers[i + 1]});
+                    temp.put(conectar(servers[i], servers[i + 1]).getServerId(), new String[]{servers[i], servers[i + 1], servers[i + 2], servers[i + 3], servers[i + 4], servers[i + 5]});
                 } catch (TTransportException ex) {
                     // Se houver algum erro de conexão e der esta exceção, o servidor com erro ficará fora da montagem da FT
                 }

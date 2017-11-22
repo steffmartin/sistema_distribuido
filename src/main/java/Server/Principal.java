@@ -14,6 +14,8 @@ import io.atomix.copycat.server.storage.StorageLevel;
 import java.io.File;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.thrift.TException;
 import org.apache.thrift.server.TServer;
 import org.apache.thrift.server.TThreadPoolServer;
@@ -47,11 +49,13 @@ public class Principal {
             System.out.println("Servidor ativo em " + args[0] + "/" + args[1] + " com o ID " + handler.getServerId() + ".");
 
             //Parte do Raft, conforme exemplo
-            addresses.add(new Address(args[0], Integer.parseInt(args[1])));
-            addresses.add(new Address(args[2], Integer.parseInt(args[3])));
-            addresses.add(new Address(args[4], Integer.parseInt(args[5])));
-            CopycatServer.Builder builder = CopycatServer.builder()//No código exemplo original aqui viria .builder(addresses.get(0)), mas tive que alterar esta parte do exeplo original porque dava erro falando que o endereço já era usado
-                    .withStateMachine(() -> {return handler;})// No código exemplo original em vez do lambda aqui viria Servidor::new, mas já criamos o servidor lá em cima, estou recuperando ele
+            addresses.add(new Address(args[0], Integer.parseInt(args[2])));
+            addresses.add(new Address(args[4], Integer.parseInt(args[6])));
+            addresses.add(new Address(args[7], Integer.parseInt(args[9])));
+            CopycatServer.Builder builder = CopycatServer.builder(addresses.get(0))//No código exemplo original aqui viria .builder(addresses.get(0)), mas tive que alterar esta parte do exeplo original porque dava erro falando que o endereço já era usado
+                    .withStateMachine(() -> {
+                        return handler;
+                    })// No código exemplo original em vez do lambda aqui viria Servidor::new, mas já criamos o servidor lá em cima, estou recuperando ele
                     .withTransport(NettyTransport.builder()
                             .withThreads(4)
                             .build())
@@ -60,20 +64,39 @@ public class Principal {
                             .withStorageLevel(StorageLevel.DISK)
                             .build());
             copycatServer = builder.build();
-            if (Boolean.parseBoolean(args[6])) {
-                copycatServer.bootstrap().join();
-            } else {
-                copycatServer.join(addresses).join();
-            }
 
-            // Ativando servidor do Thrift, tem que ser última instrução pois após ele nada mais é executado
-            thriftServer.serve();
+            Thread t1 = new Thread() {
+                @Override
+                public void run() {
+                    if (Boolean.parseBoolean(args[3])) {
+                        copycatServer.bootstrap().join();
+                    } else {
+                        copycatServer.join(addresses).join();
+                    }
+                }
+            };
+
+            Thread t2 = new Thread() {
+                @Override
+                public void run() {  
+                    
+                    // Ativando servidor do Thrift, tem que ser última instrução pois após ele nada mais é executado
+                    thriftServer.serve();
+                }
+            };
+
+            t1.start();
+            t2.start();
+
+            t1.join();
+            t2.join();
 
         } catch (ArrayIndexOutOfBoundsException | NumberFormatException ex) {
             System.out.println("Erro nos parâmetros da linha de comando.");
         } catch (TException ex) {
             System.out.println("O servidor não pôde ser iniciado.");
+        } catch (InterruptedException ex) {
+            System.out.println("O servidor foi interrompido.");
         }
     }
-
 }

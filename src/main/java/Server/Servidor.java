@@ -49,7 +49,7 @@ public class Servidor extends StateMachine implements Handler.Iface {
 
         // Salvando M e validando o tamanho do args (minimo 11, maximo 2^(m+1) + 11)
         m = Integer.parseInt(args[10]);
-        if (args.length > (Math.pow(2, m) - 1) * 6 + 11 || args.length < 11) {
+        if (args.length < 11 || args.length > (Math.pow(2, m) - 1) * 6 + 11) {
             throw new ArrayIndexOutOfBoundsException();
         }
 
@@ -59,10 +59,9 @@ public class Servidor extends StateMachine implements Handler.Iface {
         boolean last = true; // Flag para que o último nó a se conectar comece a montagem da Finger Table
 
         // Escolhendo um ID aleatório (e verificando nos outros servidores para não repetir)
-        
-        if(Boolean.parseBoolean(args[3])) {
+        if (Boolean.parseBoolean(args[3])) {
             id = (int) (Math.random() * Math.pow(2, m));
-        
+
             System.out.println("Tentando usar o ID: " + id);
             for (int i = 0; i < servers.length; i += 2) {
                 try {
@@ -83,15 +82,13 @@ public class Servidor extends StateMachine implements Handler.Iface {
             if (last) {
                 conectar(servers[0], servers[1]).setFt();
             }
-        }
-        else{
-            try{
+        } else {
+            try {
                 id = conectar(args[4], args[5]).getServerId();
+            } catch (TTransportException ex) {
+                id = conectar(args[7], args[8]).getServerId();
             }
-            catch(TTransportException ex){
-                id = conectar(args[7], args[8]).getServerId();                
-            }            
-        }            
+        }
     }
 
     // Método necessário para um servidor saber o ID do outro e não repetir
@@ -182,6 +179,17 @@ public class Servidor extends StateMachine implements Handler.Iface {
         return new Handler.Client(protocol);
     }
 
+    // Método que tentará se conectar a qualquer nó que responda de uma lista
+    private Handler.Client conectar(String[] servers) throws TTransportException {
+        for (int i = 0; i < servers.length; i += 2) {
+            try {
+                return conectar(servers[i], servers[i + 1]);
+            } catch (TTransportException ex) {
+            }
+        }
+        throw new TTransportException();
+    }
+
     // Método para se conectar ao nó sucessor de uma aresta, usando somente a Finger Table
     private Handler.Client conectarSucc(int a, int b) throws TTransportException {
         return conectarSucc(a + b);
@@ -208,7 +216,7 @@ public class Servidor extends StateMachine implements Handler.Iface {
                 System.out.println(LocalDateTime.now().toLocalTime().toString() + " ID " + id + " repassando requisição para ID " + (int) ft[m - 1][0]);
             }
         }
-        return conectar(node[0], node[1]); // Se conecta ao nó correto
+        return conectar(node); // Se conecta ao nó correto, ou qualquer cópia deste nó que esteja online
     }
 
     // Método para bloquear vértice independente do servidor que ele esteja, substitui o Syncronized. True quando bloquear, False se não existir tal vértice

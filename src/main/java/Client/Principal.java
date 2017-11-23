@@ -347,16 +347,13 @@ public class Principal {
 
         while (client == null && counter < MAX) {
             for (int i = 0; i < servers.length; i += 2) {
-                try {
-                    System.out.print("Estabelecendo conexão com o servidor (IP e Porta: " + servers[i] + ":" + servers[i + 1] + ")... ");
+                try {                    
                     transport = new TSocket(servers[i], Integer.parseInt(servers[i + 1]));
                     transport.open();
                     protocol = new TBinaryProtocol(transport);
                     client = new Handler.Client(protocol);
-                    System.out.println("Servidor online! Enviando comando e aguardando resposta... ");
                     break;
                 } catch (TTransportException ex) {
-                    System.out.println("Servidor offline.");
                 }
             }
             counter++;

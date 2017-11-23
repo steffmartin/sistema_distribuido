@@ -36,34 +36,34 @@ public class Principal {
 
     public static void main(String[] args) {
 
-        //args deve passar ip_deste_servidor + Porta_deste_servidor + ip_clone_1 + porta_clone_1 + ip_clone_2 + porta_clone_2 + boolean + M + ip_1 + porta_1 + ip_1_clone_1 + porta_1_clone_1 + ip_1_clone_2 + porta_1_clone_2 + ... + ip_n + porta_n + ip_n_clone_1 + porta_n_clone_1 + ip_n_clone_2 + porta_n_clone_2
-        //Sendo n < 2^M -1, e sendo boolean: indicar true para o primeiro servidor (que irá abrir o cluster) e false par os demais (que irão fazer join)
-        //Ex: localhost 7070 localhost 7071 localhost 7072 true 5 localhost 8080 localhost 8081 localhost 8082 localhost 9090 localhost 9091 localhost 9092
         try {
+            System.out.println("Ativando servidor THRIFT...");
+
             //Parte do Thrift
-            System.out.println("Ativando servidor...");
             handler = new Servidor(args);
             processor = new Handler.Processor(handler);
             TServerTransport serverTransport = new TServerSocket(Integer.parseInt(args[1]));
             thriftServer = new TThreadPoolServer(new TThreadPoolServer.Args(serverTransport).processor(processor));
-            System.out.println("Servidor ativo em " + args[0] + "/" + args[1] + " com o ID " + handler.getServerId() + ".");
+            System.out.println("Servidor THRIFT ativo em " + args[0] + "/" + args[1] + " com o ID " + handler.getServerId() + ".");
 
-            //Parte do Raft, conforme exemplo
+            //Parte do Raft
+            System.out.println("Ativando servidor RAFT...");
             addresses.add(new Address(args[0], Integer.parseInt(args[2])));
             addresses.add(new Address(args[4], Integer.parseInt(args[6])));
             addresses.add(new Address(args[7], Integer.parseInt(args[9])));
-            CopycatServer.Builder builder = CopycatServer.builder(addresses.get(0))//No código exemplo original aqui viria .builder(addresses.get(0)), mas tive que alterar esta parte do exeplo original porque dava erro falando que o endereço já era usado
+            CopycatServer.Builder builder = CopycatServer.builder(addresses.get(0))
                     .withStateMachine(() -> {
                         return handler;
-                    })// No código exemplo original em vez do lambda aqui viria Servidor::new, mas já criamos o servidor lá em cima, estou recuperando ele
+                    })
                     .withTransport(NettyTransport.builder()
                             .withThreads(4)
                             .build())
                     .withStorage(Storage.builder()
-                            .withDirectory(new File("LOG_" + args[0] + "_" + args[1])) //Must be unique
+                            .withDirectory(new File("LOG_" + args[0] + "_" + args[2]))
                             .withStorageLevel(StorageLevel.DISK)
                             .build());
             copycatServer = builder.build();
+            System.out.println("Servidor RAFT ativo em " + args[0] + "/" + args[2] + ". Líder: " + args[3] + ".");
 
             Thread t1 = new Thread() {
                 @Override
@@ -78,16 +78,13 @@ public class Principal {
 
             Thread t2 = new Thread() {
                 @Override
-                public void run() {  
-                    
-                    // Ativando servidor do Thrift, tem que ser última instrução pois após ele nada mais é executado
+                public void run() {
                     thriftServer.serve();
                 }
             };
 
             t1.start();
             t2.start();
-
             t1.join();
             t2.join();
 

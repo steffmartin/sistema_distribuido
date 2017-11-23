@@ -22,11 +22,17 @@ import org.apache.thrift.transport.TTransport;
 import org.apache.thrift.transport.TTransportException;
 import io.atomix.catalyst.transport.Address;
 import io.atomix.catalyst.transport.netty.NettyTransport;
+import io.atomix.copycat.client.CopycatClient;
+import io.atomix.copycat.client.RecoveryStrategies;
 import io.atomix.copycat.server.Commit;
 import io.atomix.copycat.server.CopycatServer;
 import io.atomix.copycat.server.StateMachine;
 import io.atomix.copycat.server.storage.Storage;
 import io.atomix.copycat.server.storage.StorageLevel;
+import java.util.LinkedList;
+import java.util.concurrent.ExecutionException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -43,7 +49,11 @@ public class Servidor extends StateMachine implements Handler.Iface {
     private String[] servers;                       // Será a lista com todos servidores (IPs e Portas) passadas no parâmetro, temporário até montar a FT
     private Object[][] ft;                          // Será a Finger Table, terá M nós indexados
 
-    // Construtor e métodos auto-executados
+    // Variáveis para funcionamento da replicação
+    List<Address> members = new LinkedList<>();     // Os endereços dos membros do cluster ao qual este nó pertence
+    CopycatClient cluster;                          // Uma conexão com o cluster
+
+// Construtor e métodos auto-executados
     public Servidor(String[] args) throws ArrayIndexOutOfBoundsException, NumberFormatException, TException {
         super();
 
@@ -52,6 +62,15 @@ public class Servidor extends StateMachine implements Handler.Iface {
         if (args.length < 11 || args.length > (Math.pow(2, m) - 1) * 6 + 11) {
             throw new ArrayIndexOutOfBoundsException();
         }
+
+        // Salvando o cluster
+        members.add(new Address(args[0], Integer.parseInt(args[2])));
+        members.add(new Address(args[4], Integer.parseInt(args[6])));
+        members.add(new Address(args[7], Integer.parseInt(args[9])));
+        cluster = CopycatClient.builder()
+                .withTransport(new NettyTransport())
+                .withRecoveryStrategy(RecoveryStrategies.RECOVER)
+                .build();
 
         // Deixando uma lista com todos os servidores temporariamente no nó, será descartada após montar a Finger Table
         servers = new String[args.length - 11];
@@ -80,14 +99,10 @@ public class Servidor extends StateMachine implements Handler.Iface {
 
             //O último servidor a ficar online avisa ao primeiro para montar a sua FT
             if (last) {
-                conectar(servers[0], servers[1]).setFt();
+                conectar(servers).setFt();
             }
         } else {
-            try {
-                id = conectar(args[4], args[5]).getServerId();
-            } catch (TTransportException ex) {
-                id = conectar(args[7], args[8]).getServerId();
-            }
+            id = conectar(new String[]{args[4], args[5], args[7], args[8]}).getServerId();
         }
     }
 
@@ -100,7 +115,15 @@ public class Servidor extends StateMachine implements Handler.Iface {
     // Método necessário pois a Finger Table só pode ser montada após todos ficarem online e terem seus IDs
     @Override
     public void setFt() throws TException {
-        if (ft == null) {
+        if (cluster.state() != CopycatClient.State.CONNECTED) {
+            cluster.connect(members).join();
+        }
+        cluster.submit(new setFtCommand()).join();
+        conectarSucc(sucessor).setFt();
+    }
+
+    public void setFt(Commit<setFtCommand> commit) throws TException {
+        try {
             ft = new Object[m][2]; //M linhas e 2 colunas (ID, Endereço)
 
             // Obtendo IDs de todos os servidores listados no parâmetro
@@ -137,9 +160,8 @@ public class Servidor extends StateMachine implements Handler.Iface {
                 ft[i][1] = temp.get((int) ft[i][0]);
             }
 
-            // Salvando o ID do servidor seguinte e avisando para ele montar a FT
+            // Salvando o ID do servidor seguinte
             sucessor = (int) ft[0][0];
-            conectarSucc(sucessor).setFt();
 
             // Impressão para conferência
             System.out.println("Finger Table:");
@@ -147,6 +169,8 @@ public class Servidor extends StateMachine implements Handler.Iface {
                 System.out.println("| " + (i + 1) + " | " + (int) ft[i][0] + " |");
             }
             System.out.println("\nLOG DE OPERAÇÕES DO SERVIDOR " + id + ":\n");
+        } finally {
+            commit.close();
         }
     }
 

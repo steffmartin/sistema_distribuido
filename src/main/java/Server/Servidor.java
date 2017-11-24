@@ -86,14 +86,14 @@ public class Servidor extends StateMachine implements Handler.Iface {
             for (int i = 0; i < servers.length; i += 6) {
                 try {
                     Handler.Client node = conectar(new String[]{servers[i], servers[i + 1], servers[i + 2], servers[i + 3], servers[i + 4], servers[i + 5]});
-                    System.out.println("O servidor " + servers[i] + ":" + servers[i + 1] + "/" + servers[i + 3] + "/" + servers[i + 5] + " está usando o ID " + node.getServerId() + ".");
+                    System.out.println("Nó informado online e usando o ID " + node.getServerId() + ".");
                     if (id == node.getServerId()) {
                         id = (int) (Math.random() * Math.pow(2, m));
                         i = -2;
                         System.out.println("ID indisponível. Tentando usar novo ID: " + id);
                     }
                 } catch (TTransportException ex) {
-                    System.out.println("O servidor " + servers[i] + ":" + servers[i + 1] + "/" + servers[i + 3] + "/" + servers[i + 5] + " ainda não está online.");
+                    System.out.println("Nó informado offline.");
                     last = false;
                 }
             }
@@ -294,9 +294,17 @@ public class Servidor extends StateMachine implements Handler.Iface {
         }
         if (isSucc(v.getNome())) {
             System.out.println(LocalDateTime.now().toLocalTime().toString() + " Executando createVertice(" + v.getNome() + ")");
-            return g.vertices.putIfAbsent(v.getNome(), v) == null;
+            return cluster.submit(new createVerticeCommand(v)).join();
         } else {
             return conectarSucc(v.getNome()).createVertice(v);
+        }
+    }
+
+    public boolean createVertice(Commit<createVerticeCommand> commit) {
+        try {
+            return g.vertices.putIfAbsent(commit.operation().v.getNome(), commit.operation().v) == null;
+        } finally {
+            commit.close();
         }
     }
 

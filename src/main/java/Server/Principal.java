@@ -28,40 +28,39 @@ import org.apache.thrift.transport.TServerTransport;
  */
 public class Principal {
 
-    public static Servidor handler;
-    public static TServer thriftServer;
-    public static List<Address> members = new LinkedList<>();
-    public static CopycatServer cluster;
-
     public static void main(String[] args) {
 
         try {
             System.out.println("Ativando servidores...");
 
             //Parte do Thrift
-            handler = new Servidor(args);
-            thriftServer = new TThreadPoolServer(
-                    new TThreadPoolServer.Args(new TServerSocket(Integer.parseInt(args[1])))
-                            .processor(new Handler.Processor(handler)));
+            Servidor handler = new Servidor(args);
+            Handler.Processor processor = new Handler.Processor(handler);
+            TServerTransport serverTransport = new TServerSocket(Integer.parseInt(args[1]));
+            TServer thriftServer = new TThreadPoolServer(new TThreadPoolServer.Args(serverTransport).processor(processor));
 
             //Parte do Raft
+            List<Address> members = new LinkedList<>();
             members.add(new Address(args[0], Integer.parseInt(args[2])));
             members.add(new Address(args[4], Integer.parseInt(args[6])));
             members.add(new Address(args[7], Integer.parseInt(args[9])));
-            cluster = CopycatServer.builder(members.get(0))
+            CopycatServer.Builder builder = CopycatServer.builder(members.get(0))
                     .withStateMachine(() -> {
                         return handler;
                     })
-                    .withTransport(new NettyTransport())
+                    .withTransport(NettyTransport.builder()
+                            .withThreads(4)
+                            .build())
                     .withStorage(Storage.builder()
                             .withDirectory(new File("LOG_" + args[0] + "_" + args[2]))
                             .withStorageLevel(StorageLevel.DISK)
-                            .build()).build();
+                            .build());
+            CopycatServer cluster = builder.build();
 
+            // Threads para inicializar os dois processos em paralelo
             Thread t1 = new Thread() {
                 @Override
                 public void run() {
-                    System.out.println("Servidor RAFT ativo em " + args[0] + "/" + args[2] + ". Líder: " + args[3] + ".");
                     if (Boolean.parseBoolean(args[3])) {
                         cluster.bootstrap().join();
                     } else {
@@ -69,30 +68,28 @@ public class Principal {
                     }
                 }
             };
-
             Thread t2 = new Thread() {
                 @Override
                 public void run() {
-                    try {
-                        System.out.println("Servidor THRIFT ativo em " + args[0] + "/" + args[1] + " com o ID " + handler.getServerId() + ".");
-                    } catch (TException ex) {
-                        System.out.println("Servidor THRIFT não pôde ser iniciado.");
-                    }
                     thriftServer.serve();
                 }
             };
 
             t1.start();
             t2.start();
+
+            System.out.println("Servidor THRIFT ativo em " + args[0] + "/" + args[1] + " com o ID " + handler.getServerId() + ".");
+            System.out.println("Servidor RAFT ativo em " + args[0] + "/" + args[2] + ". Líder: " + args[3] + ".");
+
             t1.join();
             t2.join();
-
+            
         } catch (ArrayIndexOutOfBoundsException | NumberFormatException ex) {
             System.out.println("Erro nos parâmetros da linha de comando.");
         } catch (TException ex) {
-            System.out.println("O servidor não pôde ser iniciado.");
+            System.out.println("O servidor THRIFT não pôde ser iniciado.");
         } catch (InterruptedException ex) {
-            System.out.println("O servidor foi interrompido.");
+            System.out.println("Um servidor foi interrompido.");
         }
     }
 }

@@ -67,10 +67,11 @@ public class Servidor extends StateMachine implements Handler.Iface {
         members.add(new Address(args[0], Integer.parseInt(args[2])));
         members.add(new Address(args[4], Integer.parseInt(args[6])));
         members.add(new Address(args[7], Integer.parseInt(args[9])));
-        cluster = CopycatClient.builder()
-                .withTransport(new NettyTransport())
-                .withRecoveryStrategy(RecoveryStrategies.RECOVER)
-                .build();
+        CopycatClient.Builder builder = CopycatClient.builder()
+                .withTransport(NettyTransport.builder()
+                        .withThreads(4)
+                        .build());
+        cluster = builder.build();
 
         // Deixando uma lista com todos os servidores temporariamente no nó, será descartada após montar a Finger Table
         servers = new String[args.length - 11];
@@ -82,17 +83,17 @@ public class Servidor extends StateMachine implements Handler.Iface {
             id = (int) (Math.random() * Math.pow(2, m));
 
             System.out.println("Tentando usar o ID: " + id);
-            for (int i = 0; i < servers.length; i += 2) {
+            for (int i = 0; i < servers.length; i += 6) {
                 try {
-                    Handler.Client node = conectar(servers[i], servers[i + 1]);
-                    System.out.println("O servidor " + servers[i] + "/" + servers[i + 1] + " está usando o ID " + node.getServerId() + ".");
+                    Handler.Client node = conectar(new String[]{servers[i], servers[i + 1], servers[i + 2], servers[i + 3], servers[i + 4], servers[i + 5]});
+                    System.out.println("O servidor " + servers[i] + ":" + servers[i + 1] + "/" + servers[i + 3] + "/" + servers[i + 5] + " está usando o ID " + node.getServerId() + ".");
                     if (id == node.getServerId()) {
                         id = (int) (Math.random() * Math.pow(2, m));
                         i = -2;
                         System.out.println("ID indisponível. Tentando usar novo ID: " + id);
                     }
                 } catch (TTransportException ex) {
-                    System.out.println("O servidor " + servers[i] + "/" + servers[i + 1] + " ainda não está online.");
+                    System.out.println("O servidor " + servers[i] + ":" + servers[i + 1] + "/" + servers[i + 3] + "/" + servers[i + 5] + " ainda não está online.");
                     last = false;
                 }
             }
@@ -115,15 +116,18 @@ public class Servidor extends StateMachine implements Handler.Iface {
     // Método necessário pois a Finger Table só pode ser montada após todos ficarem online e terem seus IDs
     @Override
     public void setFt() throws TException {
-        if (cluster.state() != CopycatClient.State.CONNECTED) {
-            cluster.connect(members).join();
+        if (ft == null) {
+            if (cluster.state() != CopycatClient.State.CONNECTED) {
+                cluster.connect(members).join();
+            }
+            cluster.submit(new setFtCommand()).join();
+            conectarSucc(sucessor).setFt();
         }
-        cluster.submit(new setFtCommand()).join();
-        conectarSucc(sucessor).setFt();
     }
 
     public void setFt(Commit<setFtCommand> commit) throws TException {
         try {
+            id = getServerId(); //Salvando o ID novamente para ficar no LOG do cluster
             ft = new Object[m][2]; //M linhas e 2 colunas (ID, Endereço)
 
             // Obtendo IDs de todos os servidores listados no parâmetro

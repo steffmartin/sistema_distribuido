@@ -29,49 +29,43 @@ import org.apache.thrift.transport.TServerTransport;
 public class Principal {
 
     public static Servidor handler;
-    public static Handler.Processor processor;
-    public static List<Address> addresses = new LinkedList<>();
-    public static CopycatServer copycatServer;
     public static TServer thriftServer;
+    public static List<Address> members = new LinkedList<>();
+    public static CopycatServer cluster;
 
     public static void main(String[] args) {
 
         try {
-            System.out.println("Ativando servidor THRIFT...");
+            System.out.println("Ativando servidores...");
 
             //Parte do Thrift
             handler = new Servidor(args);
-            processor = new Handler.Processor(handler);
-            TServerTransport serverTransport = new TServerSocket(Integer.parseInt(args[1]));
-            thriftServer = new TThreadPoolServer(new TThreadPoolServer.Args(serverTransport).processor(processor));
-            System.out.println("Servidor THRIFT ativo em " + args[0] + "/" + args[1] + " com o ID " + handler.getServerId() + ".");
+            thriftServer = new TThreadPoolServer(
+                    new TThreadPoolServer.Args(new TServerSocket(Integer.parseInt(args[1])))
+                            .processor(new Handler.Processor(handler)));
 
             //Parte do Raft
-            System.out.println("Ativando servidor RAFT...");
-            addresses.add(new Address(args[0], Integer.parseInt(args[2])));
-            addresses.add(new Address(args[4], Integer.parseInt(args[6])));
-            addresses.add(new Address(args[7], Integer.parseInt(args[9])));
-            CopycatServer.Builder builder = CopycatServer.builder(addresses.get(0))
+            members.add(new Address(args[0], Integer.parseInt(args[2])));
+            members.add(new Address(args[4], Integer.parseInt(args[6])));
+            members.add(new Address(args[7], Integer.parseInt(args[9])));
+            cluster = CopycatServer.builder(members.get(0))
                     .withStateMachine(() -> {
                         return handler;
                     })
-                    .withTransport(NettyTransport.builder()
-                            .withThreads(4)
-                            .build())
+                    .withTransport(new NettyTransport())
                     .withStorage(Storage.builder()
                             .withDirectory(new File("LOG_" + args[0] + "_" + args[2]))
                             .withStorageLevel(StorageLevel.DISK)
-                            .build());
-            copycatServer = builder.build();
-            System.out.println("Servidor RAFT ativo em " + args[0] + "/" + args[2] + ". Líder: " + args[3] + ".");
+                            .build()).build();
 
             Thread t1 = new Thread() {
                 @Override
                 public void run() {
+                    System.out.println("Servidor RAFT ativo em " + args[0] + "/" + args[2] + ". Líder: " + args[3] + ".");
                     if (Boolean.parseBoolean(args[3])) {
-                        copycatServer.bootstrap().join();
+                        cluster.bootstrap().join();
                     } else {
-                        copycatServer.join(addresses).join();
+                        cluster.join(members).join();
                     }
                 }
             };
@@ -79,6 +73,11 @@ public class Principal {
             Thread t2 = new Thread() {
                 @Override
                 public void run() {
+                    try {
+                        System.out.println("Servidor THRIFT ativo em " + args[0] + "/" + args[1] + " com o ID " + handler.getServerId() + ".");
+                    } catch (TException ex) {
+                        System.out.println("Servidor THRIFT não pôde ser iniciado.");
+                    }
                     thriftServer.serve();
                 }
             };

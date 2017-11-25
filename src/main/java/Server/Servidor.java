@@ -26,8 +26,6 @@ import io.atomix.copycat.client.CopycatClient;
 import io.atomix.copycat.server.Commit;
 import io.atomix.copycat.server.StateMachine;
 import java.util.LinkedList;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  *
@@ -73,33 +71,42 @@ public class Servidor extends StateMachine implements Handler.Iface {
         System.arraycopy(args, 11, servers, 0, args.length - 11);
         boolean last = true; // Flag para que o último nó a se conectar comece a montagem da Finger Table
 
-        // Escolhendo um ID aleatório (e verificando nos outros servidores para não repetir)
+        // Escolhendo um ID aleatório ou copiando o do líder (e verificando nos outros servidores para não repetir)
         if (Boolean.parseBoolean(args[3])) {
             id = (int) (Math.random() * Math.pow(2, m));
-
-            System.out.println("Tentando usar o ID: " + id);
-            for (int i = 0; i < servers.length; i += 6) {
-                try {
-                    Handler.Client node = conectar(new String[]{servers[i], servers[i + 1], servers[i + 2], servers[i + 3], servers[i + 4], servers[i + 5]});
-                    System.out.println("Nó informado online e usando o ID " + node.getServerId() + ".");
-                    if (id == node.getServerId()) {
-                        id = (int) (Math.random() * Math.pow(2, m));
-                        i = -2;
-                        System.out.println("ID indisponível. Tentando usar novo ID: " + id);
-                    }
-                } catch (TTransportException ex) {
-                    System.out.println("Nó informado offline.");
-                    last = false;
-                }
-            }
-
-            //O último servidor a ficar online avisa ao primeiro para montar a sua FT
-            if (last) {
-                conectar(servers).setFt();
-            }
         } else {
             id = conectar(new String[]{args[4], args[5], args[7], args[8]}).getServerId();
         }
+        
+        System.out.println("Tentando usar o ID: " + id);
+        for (int i = 0; i < servers.length; i += 6) {
+            try {
+                Handler.Client node = conectar(new String[]{servers[i], servers[i + 1], servers[i + 2], servers[i + 3], servers[i + 4], servers[i + 5]});
+                System.out.println("Nó informado online e usando o ID " + node.getServerId() + ".");
+                if (id == node.getServerId()) {
+                    id = (int) (Math.random() * Math.pow(2, m));
+                    i = -2;
+                    System.out.println("ID indisponível. Tentando usar novo ID: " + id);
+                }
+            } catch (TTransportException ex) {
+                System.out.println("Nó informado offline.");
+                last = false;
+            }
+        }
+
+        //O último servidor a ficar online avisa ao primeiro para montar a sua FT
+        if (last) {
+            try {
+                conectar(args[4], args[5]);
+                conectar(args[7], args[8]);
+            } catch (TTransportException ex) {
+                last = false;
+            }
+            if (last) {
+                conectar(servers).setFt();
+            }
+        }
+
     }
 
     // Método necessário para um servidor saber o ID do outro e não repetir
@@ -116,13 +123,13 @@ public class Servidor extends StateMachine implements Handler.Iface {
                 cluster.connect(members).join();
             }
             cluster.submit(new setFtCommand()).join();
-            conectarSucc(sucessor).setFt();
         }
     }
 
     public void setFt(Commit<setFtCommand> commit) throws TException {
         try {
-            id = getServerId(); //Salvando o ID novamente para ficar no LOG do cluster
+            m = (int) this.m; //Salvando o M novamente para ficar no LOG do cluster
+            id = (int) this.id; //Salvando o ID novamente para ficar no LOG do cluster
             ft = new Object[m][2]; //M linhas e 2 colunas (ID, Endereço)
 
             // Obtendo IDs de todos os servidores listados no parâmetro
@@ -161,6 +168,7 @@ public class Servidor extends StateMachine implements Handler.Iface {
 
             // Salvando o ID do servidor seguinte
             sucessor = (int) ft[0][0];
+            conectarSucc(sucessor).setFt();
 
             // Impressão para conferência
             System.out.println("Finger Table:");

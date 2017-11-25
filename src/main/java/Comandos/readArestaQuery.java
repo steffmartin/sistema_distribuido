@@ -14,9 +14,10 @@ import Grafo.Aresta;
  */
 public class readArestaQuery implements Query<Aresta> {
 
-    public Aresta a;
+    public int nome1, nome2;
 
-    public readArestaQuery(Aresta a) {
-        this.a = a;
+    public readArestaQuery(int nome1, int nome2) {
+        this.nome1 = nome1;
+        this.nome2 = nome2;
     }
 }

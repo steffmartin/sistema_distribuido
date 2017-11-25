@@ -15,7 +15,7 @@ public class deleteVerticeCommand implements Command<Boolean> {
 
     public int nome;
 
-    deleteVerticeCommand(int nome) {
+    public deleteVerticeCommand(int nome) {
         this.nome = nome;
     }
 }

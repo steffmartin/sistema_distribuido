@@ -77,7 +77,7 @@ public class Servidor extends StateMachine implements Handler.Iface {
         } else {
             id = conectar(new String[]{args[4], args[5], args[7], args[8]}).getServerId();
         }
-        
+
         System.out.println("Tentando usar o ID: " + id);
         for (int i = 0; i < servers.length; i += 6) {
             try {
@@ -319,22 +319,30 @@ public class Servidor extends StateMachine implements Handler.Iface {
         }
         if (isSucc(a.getVertice1(), a.getVertice2())) {
             System.out.println(LocalDateTime.now().toLocalTime().toString() + " Executando createAresta(" + a.getVertice1() + "," + a.getVertice2() + ")");
-            Id id1 = new Id(a.getVertice1(), a.getVertice2());
-            Id id2 = new Id(a.getVertice2(), a.getVertice1());
-            int menor = a.getVertice1() < a.getVertice2() ? a.getVertice1() : a.getVertice2();
-            int maior = a.getVertice1() > a.getVertice2() ? a.getVertice1() : a.getVertice2();
+            return cluster.submit(new createArestaCommand(a)).join();
+        } else {
+            return conectarSucc(a.getVertice1(), a.getVertice2()).createAresta(a);
+        }
+    }
+
+    public boolean createAresta(Commit<createArestaCommand> commit) throws TException {
+        try {
+            Id id1 = new Id(commit.operation().a.getVertice1(), commit.operation().a.getVertice2());
+            Id id2 = new Id(commit.operation().a.getVertice2(), commit.operation().a.getVertice1());
+            int menor = commit.operation().a.getVertice1() < commit.operation().a.getVertice2() ? commit.operation().a.getVertice1() : commit.operation().a.getVertice2();
+            int maior = commit.operation().a.getVertice1() > commit.operation().a.getVertice2() ? commit.operation().a.getVertice1() : commit.operation().a.getVertice2();
             try {
                 if (bloqueiaVertice(menor) & bloqueiaVertice(maior)) { // Somente um '&' para obrigar que os dois testes sejam feitos. Com '&&' ele não testa o segundo se o primeiro for FALSE
                     try {
                         synchronized (g.arestas.get(id2)) {
-                            if (!g.arestas.get(id2).isDirec() || !a.isDirec()) {
+                            if (!g.arestas.get(id2).isDirec() || !commit.operation().a.isDirec()) {
                                 return false;
                             } else {
                                 throw new NullPointerException();
                             }
                         }
                     } catch (NullPointerException ey) {
-                        return g.arestas.putIfAbsent(id1, a) == null;
+                        return g.arestas.putIfAbsent(id1, commit.operation().a) == null;
                     }
                 } else {
                     return false;
@@ -343,8 +351,8 @@ public class Servidor extends StateMachine implements Handler.Iface {
                 desbloqueiaVertice(maior); // Se os dois testes não forem feitos acima, há risco de desbloquear indevidamente o vértice maior se ele não foi testado e bloqueado acima
                 desbloqueiaVertice(menor);
             }
-        } else {
-            return conectarSucc(a.getVertice1(), a.getVertice2()).createAresta(a);
+        } finally {
+            commit.close();
         }
     }
 

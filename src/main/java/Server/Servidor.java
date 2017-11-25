@@ -26,6 +26,8 @@ import io.atomix.copycat.client.CopycatClient;
 import io.atomix.copycat.server.Commit;
 import io.atomix.copycat.server.StateMachine;
 import java.util.LinkedList;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -85,7 +87,7 @@ public class Servidor extends StateMachine implements Handler.Iface {
                 System.out.println("Nó informado online e usando o ID " + node.getServerId() + ".");
                 if (id == node.getServerId()) {
                     id = (int) (Math.random() * Math.pow(2, m));
-                    i = -2;
+                    i = -6;
                     System.out.println("ID indisponível. Tentando usar novo ID: " + id);
                 }
             } catch (TTransportException ex) {
@@ -117,7 +119,12 @@ public class Servidor extends StateMachine implements Handler.Iface {
 
     // Método necessário pois a Finger Table só pode ser montada após todos ficarem online e terem seus IDs
     @Override
-    public void setFt() throws TException {
+    public synchronized void setFt() throws TException {
+        try {
+            wait(5000); // Espera alguns segundos para montar a FT garantindo que os threads estejam recebendo o comando
+        } catch (InterruptedException ex) {
+
+        }
         if (ft == null) {
             if (cluster.state() != CopycatClient.State.CONNECTED) {
                 cluster.connect(members).join();

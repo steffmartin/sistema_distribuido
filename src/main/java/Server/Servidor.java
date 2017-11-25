@@ -23,14 +23,9 @@ import org.apache.thrift.transport.TTransportException;
 import io.atomix.catalyst.transport.Address;
 import io.atomix.catalyst.transport.netty.NettyTransport;
 import io.atomix.copycat.client.CopycatClient;
-import io.atomix.copycat.client.RecoveryStrategies;
 import io.atomix.copycat.server.Commit;
-import io.atomix.copycat.server.CopycatServer;
 import io.atomix.copycat.server.StateMachine;
-import io.atomix.copycat.server.storage.Storage;
-import io.atomix.copycat.server.storage.StorageLevel;
 import java.util.LinkedList;
-import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 

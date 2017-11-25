@@ -14,8 +14,7 @@ import io.atomix.copycat.server.storage.StorageLevel;
 import java.io.File;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.apache.log4j.PropertyConfigurator;
 import org.apache.thrift.TException;
 import org.apache.thrift.server.TServer;
 import org.apache.thrift.server.TThreadPoolServer;
@@ -29,7 +28,7 @@ import org.apache.thrift.transport.TServerTransport;
 public class Principal {
 
     public static void main(String[] args) {
-
+        PropertyConfigurator.configure("resources/log4j.properties");
         try {
             System.out.println("Ativando servidores...");
 
@@ -83,7 +82,7 @@ public class Principal {
 
             t1.join();
             t2.join();
-            
+
         } catch (ArrayIndexOutOfBoundsException | NumberFormatException ex) {
             System.out.println("Erro nos parâmetros da linha de comando.");
         } catch (TException ex) {

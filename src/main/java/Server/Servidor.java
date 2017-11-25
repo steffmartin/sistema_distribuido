@@ -305,7 +305,8 @@ public class Servidor extends StateMachine implements Handler.Iface {
 
     public boolean createVertice(Commit<createVerticeCommand> commit) {
         try {
-            return g.vertices.putIfAbsent(commit.operation().v.getNome(), commit.operation().v) == null;
+            Vertice v = commit.operation().v;
+            return g.vertices.putIfAbsent(v.getNome(), v) == null;
         } finally {
             commit.close();
         }
@@ -327,22 +328,23 @@ public class Servidor extends StateMachine implements Handler.Iface {
 
     public boolean createAresta(Commit<createArestaCommand> commit) throws TException {
         try {
-            Id id1 = new Id(commit.operation().a.getVertice1(), commit.operation().a.getVertice2());
-            Id id2 = new Id(commit.operation().a.getVertice2(), commit.operation().a.getVertice1());
-            int menor = commit.operation().a.getVertice1() < commit.operation().a.getVertice2() ? commit.operation().a.getVertice1() : commit.operation().a.getVertice2();
-            int maior = commit.operation().a.getVertice1() > commit.operation().a.getVertice2() ? commit.operation().a.getVertice1() : commit.operation().a.getVertice2();
+            Aresta a = commit.operation().a;
+            Id id1 = new Id(a.getVertice1(), a.getVertice2());
+            Id id2 = new Id(a.getVertice2(), a.getVertice1());
+            int menor = a.getVertice1() < a.getVertice2() ? a.getVertice1() : a.getVertice2();
+            int maior = a.getVertice1() > a.getVertice2() ? a.getVertice1() : a.getVertice2();
             try {
                 if (bloqueiaVertice(menor) & bloqueiaVertice(maior)) { // Somente um '&' para obrigar que os dois testes sejam feitos. Com '&&' ele não testa o segundo se o primeiro for FALSE
                     try {
                         synchronized (g.arestas.get(id2)) {
-                            if (!g.arestas.get(id2).isDirec() || !commit.operation().a.isDirec()) {
+                            if (!g.arestas.get(id2).isDirec() || !a.isDirec()) {
                                 return false;
                             } else {
                                 throw new NullPointerException();
                             }
                         }
                     } catch (NullPointerException ey) {
-                        return g.arestas.putIfAbsent(id1, commit.operation().a) == null;
+                        return g.arestas.putIfAbsent(id1, a) == null;
                     }
                 } else {
                     return false;

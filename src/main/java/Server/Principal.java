@@ -32,13 +32,8 @@ public class Principal {
         try {
             System.out.println("Ativando servidores...");
 
-            //Parte do Thrift
             Servidor handler = new Servidor(args);
-            Handler.Processor processor = new Handler.Processor(handler);
-            TServerTransport serverTransport = new TServerSocket(Integer.parseInt(args[1]));
-            TServer thriftServer = new TThreadPoolServer(new TThreadPoolServer.Args(serverTransport).processor(processor));
 
-            //Parte do Raft
             List<Address> members = new LinkedList<>();
             members.add(new Address(args[0], Integer.parseInt(args[2])));
             members.add(new Address(args[4], Integer.parseInt(args[6])));
@@ -56,7 +51,6 @@ public class Principal {
                             .build());
             CopycatServer cluster = builder.build();
 
-            // Threads para inicializar os dois processos em paralelo
             Thread t1 = new Thread() {
                 @Override
                 public void run() {
@@ -67,14 +61,18 @@ public class Principal {
                     }
                 }
             };
+            t1.start();
+
+            Handler.Processor processor = new Handler.Processor(handler);
+            TServerTransport serverTransport = new TServerSocket(Integer.parseInt(args[1]));
+            TServer thriftServer = new TThreadPoolServer(new TThreadPoolServer.Args(serverTransport).processor(processor));
+
             Thread t2 = new Thread() {
                 @Override
                 public void run() {
                     thriftServer.serve();
                 }
             };
-
-            t1.start();
             t2.start();
 
             System.out.println("Servidor THRIFT ativo em " + args[0] + "/" + args[1] + " com o ID " + handler.getServerId() + ".");

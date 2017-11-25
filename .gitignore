@@ -1,6 +1,6 @@
 /target/
-/gen-java/
-/CompiladorThrift.exe
-/compilar.bat
+/resources/gen-java/
 /LOG*/
 grafo.log
+/resources/CompiladorThrift.exe
+/resources/compilar.bat

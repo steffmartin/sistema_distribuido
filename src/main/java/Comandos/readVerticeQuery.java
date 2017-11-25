@@ -14,9 +14,9 @@ import Grafo.Vertice;
  */
 public class readVerticeQuery implements Query<Vertice> {
 
-    public Vertice v;
+    public int nome;
 
-    readVerticeQuery(Vertice v) {
-        this.v = v;
+    public readVerticeQuery(int nome) {
+        this.nome = nome;
     }
 }

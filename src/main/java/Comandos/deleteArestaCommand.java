@@ -15,7 +15,7 @@ public class deleteArestaCommand implements Command<Boolean> {
 
     public int nome, nome2;
 
-    deleteArestaCommand(int nome, int nome2) {
+    public deleteArestaCommand(int nome, int nome2) {
         this.nome = nome;
         this.nome2 = nome2;
     }

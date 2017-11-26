@@ -834,8 +834,8 @@ public class Servidor extends StateMachine implements Handler.Iface {
                     }
                     try {
                         if (!caminho.isEmpty()) {
-                            int pc = peso(caminho);
-                            int pmc = peso(menorCaminho);
+                            double pc = peso(caminho);
+                            double pmc = peso(menorCaminho);
                             if (pc == pmc && Math.random() > 0.5) { // Variação para que caminhos com mesmo peso apareçam como resultado aleatoriamente
                                 pc = 0;
                             }
@@ -855,8 +855,8 @@ public class Servidor extends StateMachine implements Handler.Iface {
     }
 
     // Método auxiliar para calcular o peso do caminho
-    private int peso(List<Vertice> caminho) throws NullException, TException {
-        int peso = 0;
+    private double peso(List<Vertice> caminho) throws NullException, TException {
+        double peso = 0;
         for (int i = 0; i < caminho.size() - 1; i++) {
             peso += readAresta(caminho.get(i).getNome(), caminho.get(i + 1).getNome()).getPeso();
         }

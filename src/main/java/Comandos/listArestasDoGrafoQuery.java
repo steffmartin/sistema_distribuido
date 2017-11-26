@@ -14,10 +14,4 @@ import java.util.List;
  * @author MarceloPrado
  */
 public class listArestasDoGrafoQuery implements Query<List<Aresta>> {
-
-    public int endId;
-
-    public listArestasDoGrafoQuery(int endId) {
-        this.endId = endId;
-    }
 }

@@ -122,16 +122,19 @@ public class Servidor extends StateMachine implements Handler.Iface {
     // Método necessário pois a Finger Table só pode ser montada após todos ficarem online e terem seus IDs
     @Override
     public synchronized void setFt() throws TException {
-        try {
-            wait(5000); // Espera alguns segundos para montar a FT garantindo que os threads estejam recebendo o comando
-        } catch (InterruptedException ex) {
-
-        }
         if (ft == null) {
             if (cluster.state() != CopycatClient.State.CONNECTED) { // Como setFt é o primeiro método invocado, nele é aberta a sessão com o cluster
                 cluster.connect(members).join();
             }
             cluster.submit(new setFtCommand()).join();
+
+            // Solicitando que o sucessor monte sua FT
+            try {
+                wait(5000); // Espera alguns segundos para montar a FT garantindo que os threads estejam recebendo o comando
+            } catch (InterruptedException ex) {
+            } finally {
+                conectarSucc(sucessor).setFt();
+            }
         }
     }
 
@@ -177,13 +180,10 @@ public class Servidor extends StateMachine implements Handler.Iface {
             sucessor = (int) ft[0][0];
 
             // Impressão para conferência
-            System.out.println("Finger Table:");
+            System.out.println("\nID: " + id + "\nFinger Table:");
             for (int i = 0; i < m; i++) {
                 System.out.println("| " + (i + 1) + " | " + (int) ft[i][0] + " |");
             }
-
-            // Solicitando que o sucessor monte sua FT
-            conectarSucc(sucessor).setFt();
         } finally {
             commit.close();
         }
@@ -341,7 +341,18 @@ public class Servidor extends StateMachine implements Handler.Iface {
         }
         if (isSucc(a.getVertice1(), a.getVertice2())) {
             System.out.println(LocalDateTime.now().toLocalTime().toString() + " Executando createAresta(" + a.getVertice1() + "," + a.getVertice2() + ")");
-            return cluster.submit(new createArestaCommand(a)).join();
+            int menor = a.getVertice1() < a.getVertice2() ? a.getVertice1() : a.getVertice2();
+            int maior = a.getVertice1() > a.getVertice2() ? a.getVertice1() : a.getVertice2();
+            try {
+                if (bloqueiaVertice(menor) & bloqueiaVertice(maior)) { // Somente um '&' para obrigar que os dois testes sejam feitos. Com '&&' ele não testa o segundo se o primeiro for FALSE
+                    return cluster.submit(new createArestaCommand(a)).join();
+                } else {
+                    return false;
+                }
+            } finally {
+                desbloqueiaVertice(maior); // Se os dois testes não forem feitos acima, há risco de desbloquear indevidamente o vértice maior se ele não foi testado e bloqueado acima
+                desbloqueiaVertice(menor);
+            }
         } else {
             return conectarSucc(a.getVertice1(), a.getVertice2()).createAresta(a);
         }
@@ -352,27 +363,16 @@ public class Servidor extends StateMachine implements Handler.Iface {
             Aresta a = commit.operation().a;
             Id id1 = new Id(a.getVertice1(), a.getVertice2());
             Id id2 = new Id(a.getVertice2(), a.getVertice1());
-            int menor = a.getVertice1() < a.getVertice2() ? a.getVertice1() : a.getVertice2();
-            int maior = a.getVertice1() > a.getVertice2() ? a.getVertice1() : a.getVertice2();
             try {
-                if (bloqueiaVertice(menor) & bloqueiaVertice(maior)) { // Somente um '&' para obrigar que os dois testes sejam feitos. Com '&&' ele não testa o segundo se o primeiro for FALSE
-                    try {
-                        synchronized (g.arestas.get(id2)) {
-                            if (!g.arestas.get(id2).isDirec() || !a.isDirec()) {
-                                return false;
-                            } else {
-                                throw new NullPointerException();
-                            }
-                        }
-                    } catch (NullPointerException ey) {
-                        return g.arestas.putIfAbsent(id1, a) == null;
+                synchronized (g.arestas.get(id2)) {
+                    if (!g.arestas.get(id2).isDirec() || !a.isDirec()) {
+                        return false;
+                    } else {
+                        throw new NullPointerException();
                     }
-                } else {
-                    return false;
                 }
-            } finally {
-                desbloqueiaVertice(maior); // Se os dois testes não forem feitos acima, há risco de desbloquear indevidamente o vértice maior se ele não foi testado e bloqueado acima
-                desbloqueiaVertice(menor);
+            } catch (NullPointerException ey) {
+                return g.arestas.putIfAbsent(id1, a) == null;
             }
         } finally {
             commit.close();
@@ -385,9 +385,15 @@ public class Servidor extends StateMachine implements Handler.Iface {
         if (isSucc(nome)) {
             System.out.println(LocalDateTime.now().toLocalTime().toString() + " Executando readVertice(" + nome + ")");
             try {
-                return cluster.submit(new readVerticeQuery(nome)).get();
+                if (bloqueiaVertice(nome)) {
+                    return cluster.submit(new readVerticeQuery(nome)).get();
+                } else {
+                    throw new NullException("O vértice '" + nome + "' não existe");
+                }
             } catch (InterruptedException | ExecutionException ex) {
-                throw new NullException("O vértice '" + nome + "' não existe");
+                throw new NullException("Erro no servidor");
+            } finally {
+                desbloqueiaVertice(nome);
             }
         } else {
             return conectarSucc(nome).readVertice(nome);
@@ -397,15 +403,7 @@ public class Servidor extends StateMachine implements Handler.Iface {
     public Vertice readVertice(Commit<readVerticeQuery> commit) throws NullException, TException {
         try {
             int nome = commit.operation().nome;
-            try {
-                if (bloqueiaVertice(nome)) {
-                    return g.vertices.get(nome);
-                } else {
-                    throw new NullException("O vértice '" + nome + "' não existe");
-                }
-            } finally {
-                desbloqueiaVertice(nome);
-            }
+            return g.vertices.get(nome);
         } finally {
             commit.close();
         }
@@ -419,7 +417,7 @@ public class Servidor extends StateMachine implements Handler.Iface {
             try {
                 return cluster.submit(new readArestaQuery(nome1, nome2)).get();
             } catch (InterruptedException | ExecutionException ex) {
-                throw new NullException("A aresta '" + nome1 + "," + nome2 + "' não existe.");
+                throw new NullException("Erro no servidor");
             }
 
         } else {
@@ -461,7 +459,15 @@ public class Servidor extends StateMachine implements Handler.Iface {
     public boolean updateVertice(Vertice v) throws TException {
         if (isSucc(v.getNome())) {
             System.out.println(LocalDateTime.now().toLocalTime().toString() + " Executando updateVertice(" + v.getNome() + ")");
-            return cluster.submit(new updateVerticeCommand(v)).join();
+            try {
+                if (bloqueiaVertice(v.getNome())) {
+                    return cluster.submit(new updateVerticeCommand(v)).join();
+                } else {
+                    return false;
+                }
+            } finally {
+                desbloqueiaVertice(v.getNome());
+            }
         } else {
             return conectarSucc(v.getNome()).updateVertice(v);
         }
@@ -470,16 +476,8 @@ public class Servidor extends StateMachine implements Handler.Iface {
     public boolean updateVertice(Commit<updateVerticeCommand> commit) throws TException {
         try {
             Vertice v = commit.operation().v;
-            try {
-                if (bloqueiaVertice(v.getNome())) {
-                    v.setBloqueado(true);
-                    return g.vertices.replace(v.getNome(), g.vertices.get(v.getNome()), v);
-                } else {
-                    return false;
-                }
-            } finally {
-                desbloqueiaVertice(v.getNome());
-            }
+            v.setBloqueado(true);
+            return g.vertices.replace(v.getNome(), g.vertices.get(v.getNome()), v);
         } finally {
             commit.close();
         }
@@ -532,7 +530,16 @@ public class Servidor extends StateMachine implements Handler.Iface {
     public boolean deleteVertice(int nome) throws TException {
         if (isSucc(nome)) {
             System.out.println(LocalDateTime.now().toLocalTime().toString() + " Executando deleteVertice(" + nome + ")");
-            return cluster.submit(new deleteVerticeCommand(nome)).join();
+            try {
+                if (bloqueiaVertice(nome)) {
+                    deleteArestasDoVertice(nome, predecessor); // Não aguardo o resultado, a operação VAI ser executada
+                    return cluster.submit(new deleteVerticeCommand(nome)).join();
+                } else {
+                    return false;
+                }
+            } finally {
+                desbloqueiaVertice(nome);
+            }
         } else {
             return conectarSucc(nome).deleteVertice(nome);
         }
@@ -541,16 +548,7 @@ public class Servidor extends StateMachine implements Handler.Iface {
     public boolean deleteVertice(Commit<deleteVerticeCommand> commit) throws TException {
         try {
             int nome = commit.operation().nome;
-            try {
-                if (bloqueiaVertice(nome)) {
-                    deleteArestasDoVertice(nome, predecessor); // Não aguardo o resultado, a operação VAI ser executada
-                    return g.vertices.remove(nome) != null;
-                } else {
-                    return false;
-                }
-            } finally {
-                desbloqueiaVertice(nome);
-            }
+            return g.vertices.remove(nome) != null;
         } finally {
             commit.close();
         }
@@ -601,26 +599,19 @@ public class Servidor extends StateMachine implements Handler.Iface {
         if (endId != id) {
             conectarSucc(sucessor).deleteArestasDoVertice(nome, endId);
         }
-        cluster.submit(new deleteArestasDoVerticeCommand(nome)).join();
-    }
-
-    public void deleteArestasDoVertice(Commit<deleteArestasDoVerticeCommand> commit) throws TException {
+        List<Aresta> list;
         try {
-            int nome = commit.operation().nome;
-            List<Aresta> list;
-            synchronized (g.arestas) {
-                list = new ArrayList<>(g.arestas.values());
+            list = cluster.submit(new listArestasDoGrafoQuery()).get();
+        } catch (InterruptedException | ExecutionException ex) {
+            throw new TException("Erro no servidor.");
+        }
+        Iterator<Aresta> it = list.iterator();
+        Aresta a;
+        while (it.hasNext()) {
+            a = it.next();
+            if (a.getVertice1() == nome || a.getVertice2() == nome) {
+                deleteAresta(a.getVertice1(), a.getVertice2());
             }
-            Iterator<Aresta> it = list.iterator();
-            Aresta a;
-            while (it.hasNext()) {
-                a = it.next();
-                if (a.getVertice1() == nome || a.getVertice2() == nome) {
-                    deleteAresta(a.getVertice1(), a.getVertice2());
-                }
-            }
-        } finally {
-            commit.close();
         }
     }
 
@@ -642,23 +633,21 @@ public class Servidor extends StateMachine implements Handler.Iface {
     public List<Vertice> listVerticesDoGrafoNoAnel(int endId) throws TException {
         System.out.println(LocalDateTime.now().toLocalTime().toString() + " Executando listVerticesDoGrafo()");
         try {
-            return cluster.submit(new listVerticesDoGrafoQuery(endId)).get();
-        } catch (InterruptedException | ExecutionException ex) {
-            throw new NullException("Falha ao listar vértices do grafo");
-        }
-    }
-
-    public List<Vertice> listVerticesDoGrafoNoAnel(Commit<listVerticesDoGrafoQuery> commit) throws TException {
-        try {
-            int endId = commit.operation().endId;
-            List<Vertice> lista;
-            synchronized (g.vertices) {
-                lista = new ArrayList<>(g.vertices.values());
-            }
+            List<Vertice> lista = cluster.submit(new listVerticesDoGrafoQuery()).get();
             if (endId != id) {
                 lista.addAll(conectarSucc(sucessor).listVerticesDoGrafoNoAnel(endId));
             }
             return lista;
+        } catch (InterruptedException | ExecutionException ex) {
+            throw new NullException("Erro no servidor");
+        }
+    }
+
+    public List<Vertice> listVerticesDoGrafo(Commit<listVerticesDoGrafoQuery> commit) throws TException {
+        try {
+            synchronized (g.vertices) {
+                return new ArrayList<>(g.vertices.values());
+            }
         } finally {
             commit.close();
         }
@@ -686,23 +675,21 @@ public class Servidor extends StateMachine implements Handler.Iface {
     public List<Aresta> listArestasDoGrafoNoAnel(int endId) throws TException {
         System.out.println(LocalDateTime.now().toLocalTime().toString() + " Executando listArestasDoGrafo()");
         try {
-            return cluster.submit(new listArestasDoGrafoQuery(endId)).get();
-        } catch (InterruptedException | ExecutionException ex) {
-            throw new NullException("Falha ao listar arestas do grafo");
-        }
-    }
-
-    public List<Aresta> listArestasDoGrafoNoAnel(Commit<listArestasDoGrafoQuery> commit) throws TException {
-        try {
-            int endId = commit.operation().endId;
-            List<Aresta> lista;
-            synchronized (g.arestas) {
-                lista = new ArrayList<>(g.arestas.values());
-            }
+            List<Aresta> lista = cluster.submit(new listArestasDoGrafoQuery()).get();
             if (endId != id) {
                 lista.addAll(conectarSucc(sucessor).listArestasDoGrafoNoAnel(endId));
             }
             return lista;
+        } catch (InterruptedException | ExecutionException ex) {
+            throw new NullException("Erro no servidor");
+        }
+    }
+
+    public List<Aresta> listArestasDoGrafo(Commit<listArestasDoGrafoQuery> commit) throws TException {
+        try {
+            synchronized (g.arestas) {
+                return new ArrayList<>(g.arestas.values());
+            }
         } finally {
             commit.close();
         }
@@ -731,20 +718,7 @@ public class Servidor extends StateMachine implements Handler.Iface {
     public List<Aresta> listArestasDoVerticeNoAnel(int nome, int endId) throws NullException, TException {
         System.out.println(LocalDateTime.now().toLocalTime().toString() + " Executando listArestasDoVertice(" + nome + ")");
         try {
-            return cluster.submit(new listArestasDoVerticeQuery(nome, endId)).get();
-        } catch (InterruptedException | ExecutionException ex) {
-            throw new NullException("Falha ao listar arestas do vértice '" + nome + "'.");
-        }
-    }
-
-    public List<Aresta> listArestasDoVerticeNoAnel(Commit<listArestasDoVerticeQuery> commit) throws NullException, TException {
-        try {
-            int nome = commit.operation().nome;
-            int endId = commit.operation().endId;
-            List<Aresta> lista;
-            synchronized (g.arestas) {
-                lista = new ArrayList<>(g.arestas.values());
-            }
+            List<Aresta> lista = cluster.submit(new listArestasDoGrafoQuery()).get();
             Iterator<Aresta> it = lista.iterator();
             Aresta a;
             while (it.hasNext()) {
@@ -757,8 +731,8 @@ public class Servidor extends StateMachine implements Handler.Iface {
                 lista.addAll(conectarSucc(sucessor).listArestasDoVerticeNoAnel(nome, endId));
             }
             return lista;
-        } finally {
-            commit.close();
+        } catch (InterruptedException | ExecutionException ex) {
+            throw new NullException("Erro no servidor");
         }
     }
 

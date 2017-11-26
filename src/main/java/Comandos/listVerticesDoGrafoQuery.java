@@ -14,10 +14,4 @@ import java.util.List;
  * @author MarceloPrado
  */
 public class listVerticesDoGrafoQuery implements Query<List<Vertice>> {
-
-    public int endId;
-
-    public listVerticesDoGrafoQuery(int endId) {
-        this.endId = endId;
-    }
 }

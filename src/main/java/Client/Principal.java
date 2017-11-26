@@ -254,13 +254,12 @@ public class Principal {
                                 if (lista.isEmpty()) {
                                     i.printLn("\nNão há um caminho.");
                                 } else {
-                                    i.printLn(lista);
-                                    i.print("Peso do caminho: ");
                                     peso = 0;
                                     for (int j = 0; j < lista.size() - 1; j++) {
                                         peso += conectar(args).readAresta(lista.get(j).getNome(), lista.get(j + 1).getNome()).getPeso();
                                     }
-                                    i.printLn("" + peso);
+                                    i.printLn(lista);
+                                    i.printLn("Peso do caminho: " + peso);
                                 }
                             } catch (NullException ex) {
                                 i.printLn("\n" + ex.mensagem);

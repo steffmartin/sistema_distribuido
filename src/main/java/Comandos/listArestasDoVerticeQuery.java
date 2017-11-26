@@ -13,10 +13,11 @@ import java.util.List;
  *
  * @author MarceloPrado
  */
-public class listArestasDoVerticeQuery implements Query<List<Aresta>>{
+public class listArestasDoVerticeQuery implements Query<List<Aresta>> {
+
     public int nome, endId;
-    
-    public listArestasDoVerticeQuery(int nome, int endId){
+
+    public listArestasDoVerticeQuery(int nome, int endId) {
         this.nome = nome;
         this.endId = endId;
     }

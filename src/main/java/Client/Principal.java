@@ -347,7 +347,7 @@ public class Principal {
 
         while (client == null && counter < MAX) {
             for (int i = 0; i < servers.length; i += 2) {
-                try {                    
+                try {
                     transport = new TSocket(servers[i], Integer.parseInt(servers[i + 1]));
                     transport.open();
                     protocol = new TBinaryProtocol(transport);

@@ -13,11 +13,11 @@ import java.util.List;
  *
  * @author MarceloPrado
  */
-public class listVizinhosDoVerticeQuery implements Query<List<Vertice>>{
-    
+public class listVizinhosDoVerticeQuery implements Query<List<Vertice>> {
+
     public int nome;
-    
-    public listVizinhosDoVerticeQuery(int nome){
+
+    public listVizinhosDoVerticeQuery(int nome) {
         this.nome = nome;
     }
 }

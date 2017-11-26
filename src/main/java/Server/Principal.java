@@ -30,6 +30,7 @@ public class Principal {
     public static void main(String[] args) {
         PropertyConfigurator.configure("resources/log4j.properties");
         try {
+            //Fazer um cronômetro para que cada nó aguarde x segundos antes de iniciar sua execução
             System.out.println("Ativando servidores...");
 
             Servidor handler = new Servidor(args);
@@ -74,6 +75,8 @@ public class Principal {
                 }
             };
             t2.start();
+            
+            //falta colocar um tempo de espera para a mensagem, pra dar tempo dos threads executarem
 
             System.out.println("Servidor THRIFT ativo em " + args[0] + "/" + args[1] + " com o ID " + handler.getServerId() + ".");
             System.out.println("Servidor RAFT ativo em " + args[0] + "/" + args[2] + ". Líder: " + args[3] + ".");

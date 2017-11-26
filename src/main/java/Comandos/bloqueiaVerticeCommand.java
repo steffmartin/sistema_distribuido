@@ -13,7 +13,7 @@ import io.atomix.copycat.Command;
  */
 public class bloqueiaVerticeCommand implements Command<Boolean> {
 
-    int nome;
+    public int nome;
 
     public bloqueiaVerticeCommand(int nome) {
         this.nome = nome;

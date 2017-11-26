@@ -260,60 +260,55 @@ public class Servidor extends StateMachine implements Handler.Iface {
     // Método para bloquear vértice independente do servidor que ele esteja, substitui o Syncronized. True quando bloquear, False se não existir tal vértice
     @Override
     public boolean bloqueiaVertice(int nome) throws TException {
-        try {
-            if (isSucc(nome)) {
-                System.out.println(LocalDateTime.now().toLocalTime().toString() + " Executando bloqueiaVertice(" + nome + ")");
-                while (true) {
-                    synchronized (g.vertices.get(nome)) {
-                        if (!g.vertices.get(nome).isBloqueado()) {
-                            g.vertices.get(nome).setBloqueado(true);
-                            return true;
-                        }
-                    }
-                }
-            } else {
-                return conectarSucc(nome).bloqueiaVertice(nome);
-            }
-        } catch (NullPointerException ex) {
-            return false;
+        if (isSucc(nome)) {
+            System.out.println(LocalDateTime.now().toLocalTime().toString() + " Executando bloqueiaVertice(" + nome + ")");
+            return cluster.submit(new bloqueiaVerticeCommand(nome)).join();
+        } else {
+            return conectarSucc(nome).bloqueiaVertice(nome);
         }
     }
 
-    /* Falta concluir
     public boolean bloqueiaVertice(Commit<bloqueiaVerticeCommand> commit) throws TException {
-        try{
-            
-        }
-        finally{
+        try {
+            int nome = commit.operation().nome;
+            while (true) {
+                synchronized (g.vertices.get(nome)) {
+                    if (!g.vertices.get(nome).isBloqueado()) {
+                        g.vertices.get(nome).setBloqueado(true);
+                        return true;
+                    }
+                }
+            }
+        } catch (NullPointerException ex) {
+            return false;
+        } finally {
             commit.close();
         }
-    }*/
+    }
 
     // Método para desbloquear um vértice que foi bloqueado em qualquer servidor
     @Override
     public void desbloqueiaVertice(int nome) throws TException {
-        try {
-            if (isSucc(nome)) {
-                System.out.println(LocalDateTime.now().toLocalTime().toString() + " Executando desbloqueiaVertice(" + nome + ")");
-                synchronized (g.vertices.get(nome)) {
-                    g.vertices.get(nome).setBloqueado(false);
-                }
-            } else {
-                conectarSucc(nome).desbloqueiaVertice(nome);
-            }
-        } catch (NullPointerException ex) {
+        if (isSucc(nome)) {
+            System.out.println(LocalDateTime.now().toLocalTime().toString() + " Executando desbloqueiaVertice(" + nome + ")");
+            cluster.submit(new desbloqueiaVerticeCommand(nome)).join();
+        } else {
+            conectarSucc(nome).desbloqueiaVertice(nome);
         }
     }
 
-    /* Falta concluir
     public void desbloqueiaVertice(Commit<desbloqueiaVerticeCommand> commit) throws TException {
-        try{
-            
-        }
-        finally{
+        try {
+            int nome = commit.operation().nome;
+            synchronized (g.vertices.get(nome)) {
+                g.vertices.get(nome).setBloqueado(false);
+            }
+        } catch (NullPointerException ex) {
+        } finally {
             commit.close();
         }
-    }*/
+    }
+
     // Métodos do Grafo
     // Criar vértice
     @Override
@@ -606,29 +601,29 @@ public class Servidor extends StateMachine implements Handler.Iface {
         if (endId != id) {
             conectarSucc(sucessor).deleteArestasDoVertice(nome, endId);
         }
-        List<Aresta> list;
-        synchronized (g.arestas) {
-            list = new ArrayList<>(g.arestas.values());
-        }
-        Iterator<Aresta> it = list.iterator();
-        Aresta a;
-        while (it.hasNext()) {
-            a = it.next();
-            if (a.getVertice1() == nome || a.getVertice2() == nome) {
-                deleteAresta(a.getVertice1(), a.getVertice2());
+        cluster.submit(new deleteArestasDoVerticeCommand(nome)).join();
+    }
+
+    public void deleteArestasDoVertice(Commit<deleteArestasDoVerticeCommand> commit) throws TException {
+        try {
+            int nome = commit.operation().nome;
+            List<Aresta> list;
+            synchronized (g.arestas) {
+                list = new ArrayList<>(g.arestas.values());
             }
+            Iterator<Aresta> it = list.iterator();
+            Aresta a;
+            while (it.hasNext()) {
+                a = it.next();
+                if (a.getVertice1() == nome || a.getVertice2() == nome) {
+                    deleteAresta(a.getVertice1(), a.getVertice2());
+                }
+            }
+        } finally {
+            commit.close();
         }
     }
 
-    /* Falta concluir
-    public void deleteArestasDoVertice(Commit<deleteArestasDoVerticeCommand> commit) throws TException {
-        try{
-            
-        }
-        finally{
-            commit.close();
-        }
-    }*/
     // Listar todos vértices 
     @Override
     public List<Vertice> listVerticesDoGrafo() throws TException {
@@ -768,6 +763,7 @@ public class Servidor extends StateMachine implements Handler.Iface {
     }
 
     // Listar vizinhos do vértice
+    // Não é preciso fazer via RAFT pois não lê nenhum dado diretamente, reutiliza outros métodos
     @Override
     public List<Vertice> listVizinhosDoVertice(int nome) throws NullException, TException {
         if (isSucc(nome)) {
@@ -792,15 +788,6 @@ public class Servidor extends StateMachine implements Handler.Iface {
         }
     }
 
-    /* Falta concluir
-    public List<Vertice> listVizinhosDoVertice(Commit<listVizinhosDoVerticeQuery> commit) throws NullException, TException {
-        try{
-            
-        }
-        finally{
-            commit.close();
-        }
-    }*/
     // Listar menor caminho de A até B
     @Override
     public List<Vertice> listMenorCaminho(int origem, int destino) throws NullException, TException {
@@ -814,7 +801,7 @@ public class Servidor extends StateMachine implements Handler.Iface {
     }
 
     // Listar menor caminho de A até B, busca por profundidade
-    // Não precisa usar o CLUSTER neste método pois ele não faz nenhuma leitura diretamente, ele reutiliza outros métodos
+    // Não é preciso fazer via RAFT pois não lê nenhum dado diretamente, reutiliza outros métodos
     @Override
     public List<Vertice> menorCaminhoDistribuido(int origem, int destino, List<Vertice> visitados) throws NullException, TException {
         if (isSucc(origem)) {

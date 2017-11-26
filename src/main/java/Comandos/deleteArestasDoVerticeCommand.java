@@ -13,11 +13,10 @@ import io.atomix.copycat.Command;
  */
 public class deleteArestasDoVerticeCommand implements Command<Void> {
 
-    int nome, endId;
+    public int nome;
 
-    public deleteArestasDoVerticeCommand(int nome, int endId) {
+    public deleteArestasDoVerticeCommand(int nome) {
         this.nome = nome;
-        this.endId = endId;
     }
 
 }

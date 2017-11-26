@@ -13,7 +13,7 @@ import io.atomix.copycat.Command;
  */
 public class desbloqueiaVerticeCommand implements Command<Void> {
 
-    int nome;
+    public int nome;
 
     public desbloqueiaVerticeCommand(int nome) {
         this.nome = nome;

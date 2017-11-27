@@ -75,7 +75,7 @@ public class Principal {
                 }
             };
             t2.start();
-            
+
             //falta colocar um tempo de espera para a mensagem, pra dar tempo dos threads executarem
 
             System.out.println("Servidor THRIFT ativo em " + args[0] + "/" + args[1] + " com o ID " + handler.getServerId() + ".");

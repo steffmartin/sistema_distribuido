@@ -74,11 +74,15 @@ public class Servidor extends StateMachine implements Handler.Iface {
         System.arraycopy(args, 11, servers, 0, args.length - 11);
         boolean last = true; // Flag para que o último nó a se conectar comece a montagem da Finger Table
 
-        // Escolhendo um ID aleatório ou copiando o do líder
-        if (Boolean.parseBoolean(args[3])) {
-            id = (int) (Math.random() * Math.pow(2, m));
-        } else {
+        // Escolhendo um ID aleatório ou copiando o do cluster
+        try {
             id = conectar(new String[]{args[4], args[5], args[7], args[8]}).getServerId();
+        } catch (TTransportException ex) {
+            if (Boolean.parseBoolean(args[3])) {
+                id = (int) (Math.random() * Math.pow(2, m));
+            } else {
+                throw ex;
+            }
         }
 
         // Verificando status e IDs dos demais servidores

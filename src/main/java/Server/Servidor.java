@@ -46,7 +46,6 @@ public class Servidor extends StateMachine implements Handler.Iface {
     private Object[][] ft;                          // Será a Finger Table, terá M nós indexados
 
     // Variáveis para funcionamento da replicação
-    List<Address> members = new LinkedList<>();     // Os endereços dos membros do cluster ao qual este nó pertence
     CopycatClient cluster;                          // Uma conexão com o cluster
 
 // Construtor e métodos auto-executados
@@ -60,9 +59,6 @@ public class Servidor extends StateMachine implements Handler.Iface {
         }
 
         // Criando o client do cluster
-        members.add(new Address(args[0], Integer.parseInt(args[2])));
-        members.add(new Address(args[4], Integer.parseInt(args[6])));
-        members.add(new Address(args[7], Integer.parseInt(args[9])));
         CopycatClient.Builder builder = CopycatClient.builder()
                 .withTransport(NettyTransport.builder()
                         .withThreads(4)
@@ -122,16 +118,20 @@ public class Servidor extends StateMachine implements Handler.Iface {
     public int getServerId() throws TException {
         return id;
     }
+    
+    // Método para o abrir a conexão com o cluster
+    public void connect(List<Address> members){
+        if (cluster.state() != CopycatClient.State.CONNECTED) { // Como setFt é o primeiro método invocado, nele é aberta a sessão com o cluster
+                cluster.connect(members).join();
+            }
+    }
 
     // Método necessário pois a Finger Table só pode ser montada após todos ficarem online e terem seus IDs
     @Override
     public synchronized void setFt() throws TException {
         if (ft == null) {
-            if (cluster.state() != CopycatClient.State.CONNECTED) { // Como setFt é o primeiro método invocado, nele é aberta a sessão com o cluster
-                cluster.connect(members).join();
-            }
             cluster.submit(new setFtCommand()).join();
-
+            
             // Solicitando que o sucessor monte sua FT
             try {
                 wait(5000); // Espera alguns segundos para montar a FT garantindo que os threads estejam recebendo o comando

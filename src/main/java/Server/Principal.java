@@ -60,10 +60,10 @@ public class Principal {
                     } else {
                         cluster.join(members).join();
                     }
+                    handler.connect(members);
                 }
             };
-            t1.start();
-
+            
             Handler.Processor processor = new Handler.Processor(handler);
             TServerTransport serverTransport = new TServerSocket(Integer.parseInt(args[1]));
             TServer thriftServer = new TThreadPoolServer(new TThreadPoolServer.Args(serverTransport).processor(processor));
@@ -74,13 +74,13 @@ public class Principal {
                     thriftServer.serve();
                 }
             };
-            t2.start();
 
             //falta colocar um tempo de espera para a mensagem, pra dar tempo dos threads executarem
-
             System.out.println("Servidor THRIFT ativo em " + args[0] + "/" + args[1] + " com o ID " + handler.getServerId() + ".");
             System.out.println("Servidor RAFT ativo em " + args[0] + "/" + args[2] + ". Líder: " + args[3] + ".");
 
+            t1.start();
+            t2.start();
             t1.join();
             t2.join();
 

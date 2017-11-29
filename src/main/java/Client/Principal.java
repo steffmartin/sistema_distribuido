@@ -21,8 +21,6 @@ import org.apache.thrift.transport.TTransportException;
  */
 public class Principal {
 
-    public static final int MAX = 3; // Número máximo de tentativas de conexão antes de dar erro de conexão
-
     public static void main(String[] args) {
 
         try {
@@ -52,13 +50,13 @@ public class Principal {
                             + "10) LIST   - Todas as Arestas\n"
                             + "11) LIST   - Arestas de um Vértice\n"
                             + "12) LIST   - Vértices Vizinhos de um Vértice\n"
-                            + "13) LIST   - Menor Caminho de A até B\n"
-                            + "14) TESTE  - Concorrência com Threads\n"
+                            + "13) LIST   - Menor Caminho de A até B\n");
+                          /*+ "14) TESTE  - Criar um grafo inicial\n"
                             + "15) TESTE  - Bloquear Vértice\n"
                             + "16) TESTE  - Desbloquear Vértice\n"
                             + "17) TESTE  - Distribuição de Vértices\n"
-                            + "18) Fechar Cliente");
-                    opcao = l.lerOpcao(1, 18);
+                            + "18) Fechar Cliente");*/
+                    opcao = l.lerOpcao(1, 13);
 
                     switch (opcao) {
                         case 1: {//1) CREATE - Vértice
@@ -266,9 +264,9 @@ public class Principal {
                             }
 
                             break;
-                        }
+                        }/*
                         case 14: {//DEMO   - Demonstração da Concorrência                           
-
+                            
                             ThreadComandos t1 = new ThreadComandos(args[0], Integer.parseInt(args[1]), "Um");
                             ThreadComandos t2 = new ThreadComandos(args[0], Integer.parseInt(args[1]), "Dois");
                             ThreadComandos t3 = new ThreadComandos(args[0], Integer.parseInt(args[1]), "Três");
@@ -289,7 +287,7 @@ public class Principal {
                             } catch (InterruptedException ex) {
                                 System.out.println("Erro no Cliente: Falha ao rodar as threads");
                             }
-
+                             
                             break;
                         }
                         case 15: {//TESTE  - Bloquear Vértice
@@ -321,50 +319,37 @@ public class Principal {
                             l.close();
                             System.exit(0);
                             break;
-                        }
+                        }*/
                     }
-                } catch (TTransportException ex) {
-                    if (ex.getMessage().equals("MAX_atingido")) {
-                        System.out.println("Número máximo de tentativas de conexão atingido, operação cancelada.");
-                    } else {
-                        throw ex;
-                    }
+                } catch (Exception ex) {
+                    System.out.println("Houve um erro no servidor, ele pode estar offline ou corrompido.");
                 }
             }
         } catch (ArrayIndexOutOfBoundsException | NumberFormatException ex) {
             System.out.println("Erro nos parâmetros da linha de comando, o sistema não será iniciado. Mensagem de erro: " + ex);
-        } catch (TTransportException ex) {
-            System.out.println("Houve um erro de comunicação com o servidor, o sistema será finalizado. Mensagem de erro: " + ex);
-            ex.printStackTrace();
-        } catch (TException ex) {
-            System.out.println("Houve um erro inesperado ao executar esta operação, o sistema será finalizado. Mensagem de erro: " + ex);
-            ex.printStackTrace();
         }
     }
 
     // Este método retorna uma conexão ativa para o cliente
-    public static Handler.Client conectar(String[] servers) throws ArrayIndexOutOfBoundsException, NumberFormatException, TTransportException, TException {
+    public static Handler.Client conectar(String[] servers) throws Exception {
 
-        int counter = 0;
         TTransport transport;
         TProtocol protocol;
         Handler.Client client = null;
 
-        while (client == null && counter < MAX) {
-            for (int i = 0; i < servers.length; i += 2) {
-                try {
-                    transport = new TSocket(servers[i], Integer.parseInt(servers[i + 1]));
-                    transport.open();
-                    protocol = new TBinaryProtocol(transport);
-                    client = new Handler.Client(protocol);
-                    break;
-                } catch (TTransportException ex) {
-                }
+        for (int i = 0; i < servers.length; i += 2) {
+            try {
+                transport = new TSocket(servers[i], Integer.parseInt(servers[i + 1]));
+                transport.open();
+                protocol = new TBinaryProtocol(transport);
+                client = new Handler.Client(protocol);
+                break;
+            } catch (TTransportException ex) {
             }
-            counter++;
         }
+
         if (client == null) {
-            throw new TTransportException("MAX_atingido");
+            throw new Exception();
         } else {
             return client;
         }

@@ -25,10 +25,7 @@ import io.atomix.catalyst.transport.netty.NettyTransport;
 import io.atomix.copycat.client.CopycatClient;
 import io.atomix.copycat.server.Commit;
 import io.atomix.copycat.server.StateMachine;
-import java.util.LinkedList;
 import java.util.concurrent.ExecutionException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  *
@@ -118,12 +115,12 @@ public class Servidor extends StateMachine implements Handler.Iface {
     public int getServerId() throws TException {
         return id;
     }
-    
+
     // Método para o abrir a conexão com o cluster
-    public void connect(List<Address> members){
+    public void connect(List<Address> members) {
         if (cluster.state() != CopycatClient.State.CONNECTED) { // Como setFt é o primeiro método invocado, nele é aberta a sessão com o cluster
-                cluster.connect(members).join();
-            }
+            cluster.connect(members).join();
+        }
     }
 
     // Método necessário pois a Finger Table só pode ser montada após todos ficarem online e terem seus IDs
@@ -131,7 +128,7 @@ public class Servidor extends StateMachine implements Handler.Iface {
     public synchronized void setFt() throws TException {
         if (ft == null) {
             cluster.submit(new setFtCommand()).join();
-            
+
             // Solicitando que o sucessor monte sua FT
             try {
                 wait(5000); // Espera alguns segundos para montar a FT garantindo que os threads estejam recebendo o comando
@@ -331,6 +328,7 @@ public class Servidor extends StateMachine implements Handler.Iface {
     public boolean createVertice(Commit<createVerticeCommand> commit) {
         try {
             Vertice v = commit.operation().v;
+            System.out.println(LocalDateTime.now().toLocalTime().toString() + " Replicando createVerticeCommand(" + v.getNome() + ")");
             return g.vertices.putIfAbsent(v.getNome(), v) == null;
         } finally {
             commit.close();
@@ -365,6 +363,7 @@ public class Servidor extends StateMachine implements Handler.Iface {
     public boolean createAresta(Commit<createArestaCommand> commit) throws TException {
         try {
             Aresta a = commit.operation().a;
+            System.out.println(LocalDateTime.now().toLocalTime().toString() + " Replicando createArestaCommand(" + a.getVertice1() + "," + a.getVertice2() + ")");
             Id id1 = new Id(a.getVertice1(), a.getVertice2());
             Id id2 = new Id(a.getVertice2(), a.getVertice1());
             try {
@@ -407,6 +406,7 @@ public class Servidor extends StateMachine implements Handler.Iface {
     public Vertice readVertice(Commit<readVerticeQuery> commit) throws NullException, TException {
         try {
             int nome = commit.operation().nome;
+            System.out.println(LocalDateTime.now().toLocalTime().toString() + " Replicando readVerticeQuery(" + nome + ")");
             return g.vertices.get(nome);
         } finally {
             commit.close();
@@ -433,7 +433,7 @@ public class Servidor extends StateMachine implements Handler.Iface {
         try {
             int nome1 = commit.operation().nome1;
             int nome2 = commit.operation().nome2;
-
+            System.out.println(LocalDateTime.now().toLocalTime().toString() + " Replicando readArestaQuery(" + nome1 + "," + nome2 + ")");
             Id id1 = new Id(nome1, nome2);
             Id id2 = new Id(nome2, nome1);
             try {
@@ -480,6 +480,7 @@ public class Servidor extends StateMachine implements Handler.Iface {
     public boolean updateVertice(Commit<updateVerticeCommand> commit) throws TException {
         try {
             Vertice v = commit.operation().v;
+            System.out.println(LocalDateTime.now().toLocalTime().toString() + " Replicando updateVerticeCommand(" + v.getNome() + ")");
             v.setBloqueado(true);
             return g.vertices.replace(v.getNome(), g.vertices.get(v.getNome()), v);
         } finally {
@@ -501,6 +502,7 @@ public class Servidor extends StateMachine implements Handler.Iface {
     public boolean updateAresta(Commit<updateArestaCommand> commit) throws TException {
         try {
             Aresta a = commit.operation().a;
+            System.out.println(LocalDateTime.now().toLocalTime().toString() + " Replicando updateArestaCommand(" + a.getVertice1() + "," + a.getVertice2() + ")");
             Id id1 = new Id(a.getVertice1(), a.getVertice2());
             Id id2 = new Id(a.getVertice2(), a.getVertice1());
             try {
@@ -552,6 +554,7 @@ public class Servidor extends StateMachine implements Handler.Iface {
     public boolean deleteVertice(Commit<deleteVerticeCommand> commit) throws TException {
         try {
             int nome = commit.operation().nome;
+            System.out.println(LocalDateTime.now().toLocalTime().toString() + " Replicando deleteVerticeCommand(" + nome + ")");
             return g.vertices.remove(nome) != null;
         } finally {
             commit.close();
@@ -573,6 +576,7 @@ public class Servidor extends StateMachine implements Handler.Iface {
         try {
             int nome1 = commit.operation().nome;
             int nome2 = commit.operation().nome2;
+            System.out.println(LocalDateTime.now().toLocalTime().toString() + " Replicando deleteArestaCommand(" + nome1 + "," + nome2 + ")");
             Id id1 = new Id(nome1, nome2);
             Id id2 = new Id(nome2, nome1);
             try {
@@ -649,6 +653,7 @@ public class Servidor extends StateMachine implements Handler.Iface {
 
     public List<Vertice> listVerticesDoGrafo(Commit<listVerticesDoGrafoQuery> commit) throws TException {
         try {
+            System.out.println(LocalDateTime.now().toLocalTime().toString() + " Replicando listVerticesDoGrafoQuery()");
             synchronized (g.vertices) {
                 return new ArrayList<>(g.vertices.values());
             }
@@ -691,6 +696,7 @@ public class Servidor extends StateMachine implements Handler.Iface {
 
     public List<Aresta> listArestasDoGrafo(Commit<listArestasDoGrafoQuery> commit) throws TException {
         try {
+            System.out.println(LocalDateTime.now().toLocalTime().toString() + " Replicando listArestasDoGrafoQuery()");
             synchronized (g.arestas) {
                 return new ArrayList<>(g.arestas.values());
             }

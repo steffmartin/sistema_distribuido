@@ -63,7 +63,7 @@ public class Principal {
                     handler.connect(members);
                 }
             };
-            
+
             Handler.Processor processor = new Handler.Processor(handler);
             TServerTransport serverTransport = new TServerSocket(Integer.parseInt(args[1]));
             TServer thriftServer = new TThreadPoolServer(new TThreadPoolServer.Args(serverTransport).processor(processor));

@@ -18,6 +18,7 @@ Without this configuration present, some functionality in the IDE may be limited
             <configuration id="Node 3.1" profiles=""/>
             <configuration id="Node 3.2" profiles=""/>
             <configuration id="Node 3.3" profiles=""/>
+            <configuration id="RedeSocial" profiles=""/>
         </configurations>
     </config-data>
 </project-shared-configuration>

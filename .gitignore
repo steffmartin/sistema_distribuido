@@ -1,6 +1,8 @@
 /target/
 /resources/gen-java/
+/src/test/
 /LOG*/
 grafo.log
 /resources/CompiladorThrift.exe
 /resources/compilar.bat
+.git

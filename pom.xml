@@ -45,9 +45,9 @@
     </dependencies>
     <build>
         <resources>
-             <resource>
-                  <directory>resources</directory>
-             </resource>
+            <resource>
+                <directory>resources</directory>
+            </resource>
         </resources>
         <plugins>
             <plugin>
@@ -83,6 +83,24 @@
                                 <descriptorRef>jar-with-dependencies</descriptorRef>
                             </descriptorRefs>
                             <finalName>Client</finalName>
+                        </configuration>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>assembly</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>social</id>
+                        <configuration>
+                            <archive>
+                                <manifest>
+                                    <mainClass>Client.RedeSocial</mainClass>
+                                </manifest>
+                            </archive>
+                            <descriptorRefs>
+                                <descriptorRef>jar-with-dependencies</descriptorRef>
+                            </descriptorRefs>
+                            <finalName>RedeSocial</finalName>
                         </configuration>
                         <phase>package</phase>
                         <goals>

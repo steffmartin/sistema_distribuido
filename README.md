@@ -1,6 +1,6 @@
 # Sistemas Distribuídos
 
-> Descrição em breve.
+> Descrição em breve...
 
 ## Autores
 

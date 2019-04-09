@@ -2,8 +2,6 @@
 
 > Descrição em breve.
 
-Neste arquivo você encontrará instruções para instalação e também tecnologias utilizadas nesta aplicação.
-
 ## Autores
 
 * Steffan Martins Alves - [LinkedIn](https://www.linkedin.com/in/steffanmartins/)

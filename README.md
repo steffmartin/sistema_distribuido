@@ -4,9 +4,7 @@
 
 Sistema de banco de dados distribuído, replicado e tolerante a falhas. A comunicação entre cada cliente e servidor utiliza Thrift, e a replicação entre os servidores utiliza Raft.
 
-O modelo funciona como na imagem acima. N servidores são iniciados, e para cada servidor 2 outras réplicas são construídas. Cada nó possui 3 servidores e o cliente pode se comunicar com qualquer servidor de qualquer nó.
-
-O armazenamento dos dados é distribuído, logo, nem sempre os dados estão armazenados no servidor contatado pelo cliente, mas os servidores se comunicam entre si para dividir a responsabilidade.
+O modelo funciona como na imagem acima. N servidores são iniciados, e para cada servidor 2 outras réplicas são construídas. Cada nó possui 3 servidores e o cliente pode se comunicar com qualquer servidor de qualquer nó. Os servidores compartilham dados e serviços, portanto, todos podem atender a qualquer cliente.
 
 ## Autores
 
